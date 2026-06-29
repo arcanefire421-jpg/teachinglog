@@ -47,19 +47,37 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .cache-delete{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;box-shadow:none;
   min-width:34px;padding:4px 8px;margin:0;font-size:.9rem;}
 .output{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;border-radius:12px;
-  line-height:1.55;background:#ffffff;border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
+  line-height:1.55;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
   font-size:1rem;letter-spacing:0;box-shadow:0 8px 22px rgba(20,35,70,0.08);}
-.output-header{border-bottom:2px solid #2563eb;padding-bottom:10px;margin-bottom:12px;}
-.output-title{font-size:1.28rem;font-weight:800;color:#1e3a8a;margin:0;}
-.output-subtitle{font-size:0.92rem;color:#64748b;margin-top:3px;}
-.output-grid{display:grid;gap:10px;}
-.output-item{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start;
-  padding:10px 0;border-bottom:1px solid #edf2f7;}
-.output-item:last-child{border-bottom:none;}
-.output-label{font-weight:800;color:#334155;white-space:nowrap;}
+.output-header{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:linear-gradient(135deg,#2563eb,#06b6d4);color:#fff;border-radius:11px;
+  padding:12px 13px;margin-bottom:12px;}
+.output-title{font-size:1.28rem;font-weight:900;margin:0;}
+.output-subtitle{font-size:0.92rem;color:#dff6ff;margin-top:3px;}
+.output-badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.38);
+  border-radius:999px;padding:6px 10px;font-weight:800;white-space:nowrap;}
+.output-grid{display:grid;gap:8px;}
+.output-item{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:start;
+  padding:10px;border-radius:11px;border:1px solid #e2e8f0;background:#ffffff;}
+.output-item.class{background:#fff7ed;border-color:#fed7aa;}
+.output-item.date{background:#eff6ff;border-color:#bfdbfe;}
+.output-item.progress{background:#f0fdf4;border-color:#bbf7d0;}
+.output-item.pages{background:#f8fafc;border-color:#cbd5e1;}
+.output-item.quiz{background:#fefce8;border-color:#fde68a;}
+.output-item.homework{background:#fdf2f8;border-color:#fbcfe8;}
+.output-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;
+  background:#e0f2fe;font-size:1.15rem;}
+.output-item.class .output-icon{background:#fed7aa;}
+.output-item.date .output-icon{background:#bfdbfe;}
+.output-item.progress .output-icon{background:#bbf7d0;}
+.output-item.pages .output-icon{background:#e2e8f0;}
+.output-item.quiz .output-icon{background:#fde68a;}
+.output-item.homework .output-icon{background:#fbcfe8;}
+.output-label{font-weight:900;color:#334155;white-space:nowrap;margin-bottom:2px;}
 .output-value{color:#111827;white-space:pre-wrap;word-break:break-word;}
 .output-progress{padding-left:0;margin:0;list-style:none;}
-.output-progress li{padding:2px 0;}
+.output-progress li{padding:6px 8px;margin:4px 0;border-radius:8px;background:rgba(255,255,255,.72);
+  border:1px solid rgba(34,197,94,.18);}
 @media (max-width:520px){
   body{padding:4px;}
   .output{font-size:1rem;padding:14px 12px;}
@@ -6070,18 +6088,33 @@ function generate() {
 }
 
 function renderOutputHtml(sections, date) {
+    const meta = {
+        '班級': { icon: '🏫', cls: 'class' },
+        '日期': { icon: '🗓️', cls: 'date' },
+        '今日進度': { icon: '📘', cls: 'progress' },
+        '頁數': { icon: '📄', cls: 'pages' },
+        '小考': { icon: '🧾', cls: 'quiz' },
+        '作業': { icon: '🏠', cls: 'homework' },
+    };
     const rows = sections.map(section => {
+        const itemMeta = meta[section.label] || { icon: '✨', cls: '' };
         const valueHtml = section.type === 'progress'
             ? `<ul class="output-progress">${section.value.split('\n').filter(Boolean).map(line => `<li>${htmlEscape(line)}</li>`).join('')}</ul>`
             : htmlEscape(section.value);
-        return `<div class="output-item">
-                  <div class="output-label">${htmlEscape(section.label)}</div>
-                  <div class="output-value">${valueHtml}</div>
+        return `<div class="output-item ${itemMeta.cls}">
+                  <div class="output-icon">${itemMeta.icon}</div>
+                  <div>
+                    <div class="output-label">${htmlEscape(section.label)}</div>
+                    <div class="output-value">${valueHtml}</div>
+                  </div>
                 </div>`;
     }).join('');
     return `<div class="output-header">
-              <div class="output-title">教學日誌</div>
-              <div class="output-subtitle">${htmlEscape(date || formatDate(new Date()))}</div>
+              <div>
+                <div class="output-title">教學日誌</div>
+                <div class="output-subtitle">${htmlEscape(date || formatDate(new Date()))}</div>
+              </div>
+              <div class="output-badge">今日紀錄</div>
             </div>
             <div class="output-grid">${rows}</div>`;
 }
