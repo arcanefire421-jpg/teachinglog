@@ -101,6 +101,12 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
 
 <div class="card">
   <label>📚 科目 / 進度選單</label>
+  <select id="levelFilter" onchange="loadBooks()">
+    <option value="">全部學制</option>
+    <option value="國小">國小</option>
+    <option value="國中">國中</option>
+    <option value="高中">高中</option>
+  </select>
   <select id="subject" onchange="loadBooks()">
     <option value="">--選科目--</option>
     <option value="chinese">國文</option>
@@ -118,7 +124,20 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
     <option value="other">其他</option>
   </select>
 
+  <div class="section">
+    <label>🔎 搜尋進度</label>
+    <input id="progressSearch" placeholder="輸入章節關鍵字，例如：牛頓、二元一次、生殖" oninput="searchProgress()">
+    <div id="searchResults" style="margin-top:8px;"></div>
+  </div>
+
   <div id="bookArea" class="section">
+  </div>
+
+  <div class="section">
+    <label>✏️ 自訂進度</label>
+    <input id="customProgressPath" placeholder="例：段考檢討 / 講義補充 / 第3回">
+    <input id="customProgressTopic" placeholder="例：錯題訂正、考前複習（可空白）">
+    <button class="green" onclick="addCustomProgress()">＋加入自訂進度</button>
   </div>
 
   <div id="cacheArea" class="section" style="text-align: center;">
@@ -5267,6 +5286,33 @@ function mergeBookData(target, source) {
 }
 mergeBookData(BOOKS, QUESTION_BANK_BOOKS);
 
+function deriveSocietySubject(targetKey, keyword) {
+  BOOKS[targetKey] = BOOKS[targetKey] || {};
+  const societyBooks = BOOKS.society || {};
+  Object.keys(societyBooks).forEach(bookName => {
+    const chapters = societyBooks[bookName] || {};
+    const matchedChapters = {};
+    Object.keys(chapters).forEach(chapterName => {
+      if (chapterName.includes(keyword)) {
+        matchedChapters[chapterName] = chapters[chapterName];
+      }
+    });
+    if (Object.keys(matchedChapters).length > 0) {
+      BOOKS[targetKey][bookName] = matchedChapters;
+    }
+  });
+}
+deriveSocietySubject('history', '歷史');
+deriveSocietySubject('geography', '地理');
+deriveSocietySubject('civics', '公民');
+BOOKS.other = BOOKS.other || {
+  "其他": {
+    "進度": { "課程內容": ["其他進度"] },
+    "輔導": { "課程內容": ["其他輔導"] },
+    "總複習": { "課程內容": ["其他總複習"] },
+  },
+};
+
 // ================ 2. JS 變數與輔助函數 (v13.1 修正) ================
 
 function safeJSONParse(key, defaultValue) {
@@ -5323,7 +5369,7 @@ function renderCache() {
 
 function addToCache() {
     let itemsToCache = [];
-    const checks = document.querySelectorAll("#topicArea input[type=checkbox]:checked");
+    const checks = document.querySelectorAll("#topicArea input[type=checkbox]:checked, #searchResults input[type=checkbox]:checked");
 
     if (checks.length > 0) {
         checks.forEach(cb => {
@@ -5387,6 +5433,22 @@ function addToCache() {
     saveCache();
 }
 
+function addCustomProgress() {
+    const pathInput = document.getElementById('customProgressPath');
+    const topicInput = document.getElementById('customProgressTopic');
+    const path = pathInput ? pathInput.value.trim() : '';
+    const topic = topicInput && topicInput.value.trim() ? topicInput.value.trim() : path;
+    if (!path) {
+        alert("請先輸入自訂進度");
+        return;
+    }
+    const isDuplicate = progressCache.some(p => p.path === path && p.topic === topic);
+    if (!isDuplicate) progressCache.push({ path, topic });
+    if (pathInput) pathInput.value = '';
+    if (topicInput) topicInput.value = '';
+    saveCache();
+}
+
 function clearCache(showConfirm = false) {
     if (showConfirm && !confirm("確定要清空所有暫存區的進度嗎？")) return;
     progressCache = [];
@@ -5396,19 +5458,50 @@ function clearCache(showConfirm = false) {
 function appendPages(text) { document.getElementById("pages").value = text.trim(); }
 
 // ================ 級聯選單功能 ================
+function htmlEscape(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function selectedLevelPrefix() {
+    const levelSelect = document.getElementById('levelFilter');
+    return levelSelect ? levelSelect.value : '';
+}
+
+function bookMatchesLevel(bookName) {
+    const level = selectedLevelPrefix();
+    if (!level) return true;
+    return bookName.startsWith(level);
+}
+
+function resetLowerProgressAreas() {
+    ['sectionSelectArea', 'topicArea'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+}
+
 function loadBooks() {
     const subjectKey = document.getElementById('subject').value;
     const bookArea = document.getElementById('bookArea');
     if (!bookArea) return;
     bookArea.innerHTML = '';
+    searchProgress();
 
     if (!subjectKey || !BOOKS[subjectKey]) return;
 
-    const books = Object.keys(BOOKS[subjectKey]);
+    const books = Object.keys(BOOKS[subjectKey]).filter(bookMatchesLevel);
+    if (books.length === 0) {
+        bookArea.innerHTML = '<div class="cache-item">此學制目前沒有這個科目的進度資料。</div>';
+        return;
+    }
     let html = '<label>📖 冊別</label>';
     html += `<select id="bookSelect" onchange="loadChapters()">
                 <option value="">--選冊別--</option>
-                ${books.map(b => `<option value="${b}">${b}</option>`).join('')}
+                ${books.map(b => `<option value="${htmlEscape(b)}">${htmlEscape(b)}</option>`).join('')}
              </select>`;
     html += '<div id="chapterSelectArea" style="margin-top:10px;"></div>';
     html += '<div id="sectionSelectArea" style="margin-top:10px;"></div>';
@@ -5422,13 +5515,14 @@ function loadChapters() {
     const bookName = bookSelect ? bookSelect.value : '';
     const chapterArea = document.getElementById('chapterSelectArea');
     if (chapterArea) chapterArea.innerHTML = '';
+    resetLowerProgressAreas();
     if (!bookName) return;
 
     const chapters = Object.keys(BOOKS[subjectKey][bookName]);
     let html = '<label>📑 章節</label>';
     html += `<select id="chapterSelect" onchange="loadSections()">
                 <option value="">--選章節--</option>
-                ${chapters.map(c => `<option value="${c}">${c}</option>`).join('')}
+                ${chapters.map(c => `<option value="${htmlEscape(c)}">${htmlEscape(c)}</option>`).join('')}
              </select>`;
     chapterArea.innerHTML = html;
 }
@@ -5441,13 +5535,15 @@ function loadSections() {
     const chapterName = chapterSelect ? chapterSelect.value : '';
     const sectionArea = document.getElementById('sectionSelectArea');
     if (sectionArea) sectionArea.innerHTML = '';
+    const topicArea = document.getElementById('topicArea');
+    if (topicArea) topicArea.innerHTML = '';
     if (!chapterName) return;
 
     const sections = Object.keys(BOOKS[subjectKey][bookName][chapterName]);
     let html = '<label>📝 小節</label>';
     html += `<select id="sectionSelect" onchange="loadTopics()">
                 <option value="">--選小節--</option>
-                ${sections.map(s => `<option value="${s}">${s}</option>`).join('')}
+                ${sections.map(s => `<option value="${htmlEscape(s)}">${htmlEscape(s)}</option>`).join('')}
              </select>`;
     sectionArea.innerHTML = html;
 }
@@ -5469,12 +5565,69 @@ function loadTopics() {
         const progressPath = `${bookName} / ${chapterName} / ${sectionName}`;
         const uniqueId = `topic-${sectionName.replace(/\s/g, '_')}-${index}`;
         html += `<div class="unit-row">
-                   <input type="checkbox" id="${uniqueId}" value="${progressPath}" data-topic-name="${topic}">
-                   <label for="${uniqueId}" class="unit-label">${topic}</label>
+                   <input type="checkbox" id="${htmlEscape(uniqueId)}" value="${htmlEscape(progressPath)}" data-topic-name="${htmlEscape(topic)}">
+                   <label for="${htmlEscape(uniqueId)}" class="unit-label">${htmlEscape(topic)}</label>
                  </div>`;
     });
     html += '</div>';
     topicArea.innerHTML = html;
+}
+
+function buildProgressIndex() {
+    const subjectSelect = document.getElementById('subject');
+    const selectedSubject = subjectSelect ? subjectSelect.value : '';
+    const subjectKeys = selectedSubject ? [selectedSubject] : Object.keys(BOOKS);
+    const rows = [];
+    subjectKeys.forEach(subjectKey => {
+        const books = BOOKS[subjectKey] || {};
+        Object.keys(books).filter(bookMatchesLevel).forEach(bookName => {
+            const chapters = books[bookName] || {};
+            Object.keys(chapters).forEach(chapterName => {
+                const sections = chapters[chapterName] || {};
+                Object.keys(sections).forEach(sectionName => {
+                    const topics = sections[sectionName] || [];
+                    topics.forEach(topic => {
+                        rows.push({
+                            path: `${bookName} / ${chapterName} / ${sectionName}`,
+                            topic,
+                            text: `${bookName} ${chapterName} ${sectionName} ${topic}`,
+                        });
+                    });
+                });
+            });
+        });
+    });
+    return rows;
+}
+
+function searchProgress() {
+    const input = document.getElementById('progressSearch');
+    const results = document.getElementById('searchResults');
+    if (!input || !results) return;
+    const keyword = input.value.trim().toLowerCase();
+    results.innerHTML = '';
+    if (!keyword) return;
+
+    const matches = buildProgressIndex()
+        .filter(row => row.text.toLowerCase().includes(keyword))
+        .slice(0, 30);
+
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="cache-item">找不到符合的進度。</div>';
+        return;
+    }
+
+    let html = '<label>搜尋結果 (可複選)</label>';
+    html += '<div style="max-height: 220px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 8px; border-radius: 8px;">';
+    matches.forEach((item, index) => {
+        const id = `search-topic-${index}`;
+        html += `<div class="unit-row">
+                   <input type="checkbox" id="${id}" value="${htmlEscape(item.path)}" data-topic-name="${htmlEscape(item.topic)}">
+                   <label for="${id}" class="unit-label">${htmlEscape(item.path)}<br>(${htmlEscape(item.topic)})</label>
+                 </div>`;
+    });
+    html += '</div>';
+    results.innerHTML = html;
 }
 
 // ================ 日期與模板 ================
