@@ -5585,7 +5585,19 @@ function displayBookName(bookName) {
         .replace(/^(國小|國中|高中)/, '')
         .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合)版/, '')
         .replace(/（\d+學年）|\(\d+學年\)/g, '')
+        .replace(/第(\d+)冊/g, (_, num) => `第${numberToChinese(Number(num))}冊`)
         .trim();
+}
+
+function numberToChinese(num) {
+    const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+    if (!Number.isFinite(num) || num <= 0) return String(num);
+    if (num < 10) return digits[num];
+    if (num === 10) return '十';
+    if (num < 20) return `十${digits[num - 10]}`;
+    const tens = Math.floor(num / 10);
+    const ones = num % 10;
+    return `${digits[tens]}十${digits[ones] || ''}`;
 }
 
 function chineseNumberValue(text) {
