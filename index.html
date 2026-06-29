@@ -5465,14 +5465,14 @@ function addToCache() {
 
         if (subjectKey) {
             if (sectionName) {
-                progressPath = `${bookName} / ${chapterName} / ${sectionName}`;
+                progressPath = `${displayBookName(bookName.split('||')[0])} / ${chapterName} / ${sectionName}`;
                 progressName = sectionName;
             } else if (chapterName) {
-                progressPath = `${bookName} / ${chapterName}`;
+                progressPath = `${displayBookName(bookName.split('||')[0])} / ${chapterName}`;
                 progressName = chapterName;
             } else if (bookName) {
-                progressPath = `${bookName}`;
-                progressName = bookName;
+                progressPath = `${displayBookName(bookName.split('||')[0])}`;
+                progressName = progressPath;
             }
         }
         if (progressPath && progressName) {
@@ -5573,12 +5573,83 @@ function bookMatchesLevel(bookName) {
     return bookName.startsWith(level);
 }
 
+function usesDefaultHighScience(subjectKey, bookName) {
+    const defaultSubjects = ['physics', 'chemistry', 'biology', 'earth'];
+    return selectedLevelPrefix() === '高中'
+        && defaultSubjects.includes(subjectKey)
+        && !/^(國小|國中|高中)/.test(bookName);
+}
+
 function displayBookName(bookName) {
     return String(bookName || '')
         .replace(/^(國小|國中|高中)/, '')
         .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合)版/, '')
         .replace(/（\d+學年）|\(\d+學年\)/g, '')
         .trim();
+}
+
+function chineseNumberValue(text) {
+    const map = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+    if (!text) return 999;
+    if (/^\d+$/.test(text)) return Number(text);
+    if (text === '十') return 10;
+    if (text.startsWith('十')) return 10 + (map[text.slice(1)] || 0);
+    if (text.includes('十')) {
+        const [tens, ones] = text.split('十');
+        return (map[tens] || 1) * 10 + (map[ones] || 0);
+    }
+    return map[text] || 999;
+}
+
+function bookSortValue(displayName) {
+    const name = displayName || '';
+    let match = name.match(/第([一二三四五六七八九十\d]+)冊/);
+    if (match) return chineseNumberValue(match[1]);
+    match = name.match(/第([一二三四五六七八九十\d]+)本/);
+    if (match) return chineseNumberValue(match[1]);
+    match = name.match(/選修\s*\(?\s*([IVX]+|\d+|[一二三四五六七八九十]+)\s*\)?/i);
+    if (match) {
+        const roman = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
+        const key = match[1].toUpperCase();
+        return 100 + (roman[key] || chineseNumberValue(match[1]));
+    }
+    if (name.includes('總複習')) return 900;
+    return 800;
+}
+
+function getBookGroups(subjectKey) {
+    const groups = new Map();
+    let bookNames = Object.keys(BOOKS[subjectKey] || {}).filter(bookMatchesLevel);
+    if (['physics', 'chemistry', 'biology', 'earth'].includes(subjectKey) && selectedLevelPrefix() === '高中') {
+        bookNames = bookNames.filter(bookName => usesDefaultHighScience(subjectKey, bookName));
+    }
+    bookNames.forEach(bookName => {
+        const display = displayBookName(bookName);
+        if (!groups.has(display)) groups.set(display, []);
+        groups.get(display).push(bookName);
+    });
+    return Array.from(groups.entries())
+        .map(([display, names]) => ({ display, names }))
+        .sort((a, b) => {
+            const diff = bookSortValue(a.display) - bookSortValue(b.display);
+            return diff || a.display.localeCompare(b.display, 'zh-Hant');
+        });
+}
+
+function mergedBookChapters(subjectKey, bookValue) {
+    const bookNames = String(bookValue || '').split('||').filter(Boolean);
+    const merged = {};
+    bookNames.forEach(bookName => {
+        const chapters = BOOKS[subjectKey]?.[bookName] || {};
+        Object.keys(chapters).forEach(chapterName => {
+            if (!merged[chapterName]) {
+                merged[chapterName] = chapters[chapterName];
+            } else {
+                merged[chapterName] = Object.assign({}, merged[chapterName], chapters[chapterName]);
+            }
+        });
+    });
+    return merged;
 }
 
 function displayProgressPath(path) {
@@ -5605,15 +5676,15 @@ function loadBooks() {
 
     if (!subjectKey || !BOOKS[subjectKey]) return;
 
-    const books = Object.keys(BOOKS[subjectKey]).filter(bookMatchesLevel);
-    if (books.length === 0) {
+    const bookGroups = getBookGroups(subjectKey);
+    if (bookGroups.length === 0) {
         bookArea.innerHTML = '<div class="cache-item">此學制目前沒有這個科目的進度資料。</div>';
         return;
     }
     let html = '<label>📖 冊別</label>';
     html += `<select id="bookSelect" onchange="loadChapters()">
                 <option value="">--選冊別--</option>
-                ${books.map(b => `<option value="${htmlEscape(b)}">${htmlEscape(displayBookName(b))}</option>`).join('')}
+                ${bookGroups.map(group => `<option value="${htmlEscape(group.names.join('||'))}">${htmlEscape(group.display)}</option>`).join('')}
              </select>`;
     html += '<div id="chapterSelectArea" style="margin-top:10px;"></div>';
     html += '<div id="sectionSelectArea" style="margin-top:10px;"></div>';
@@ -5630,7 +5701,8 @@ function loadChapters() {
     resetLowerProgressAreas();
     if (!bookName) return;
 
-    const chapters = Object.keys(BOOKS[subjectKey][bookName]);
+    const bookChapters = mergedBookChapters(subjectKey, bookName);
+    const chapters = Object.keys(bookChapters);
     let html = '<label>📑 章節</label>';
     html += `<select id="chapterSelect" onchange="loadSections()">
                 <option value="">--選章節--</option>
@@ -5651,7 +5723,8 @@ function loadSections() {
     if (topicArea) topicArea.innerHTML = '';
     if (!chapterName) return;
 
-    const sections = Object.keys(BOOKS[subjectKey][bookName][chapterName]);
+    const bookChapters = mergedBookChapters(subjectKey, bookName);
+    const sections = Object.keys(bookChapters[chapterName] || {});
     let html = '<label>📝 小節</label>';
     html += `<select id="sectionSelect" onchange="loadTopics()">
                 <option value="">--選小節--</option>
@@ -5670,11 +5743,12 @@ function loadTopics() {
     topicArea.innerHTML = '';
     if (!sectionName) return;
 
-    const topics = BOOKS[subjectKey][bookName][chapterName][sectionName];
+    const bookChapters = mergedBookChapters(subjectKey, bookName);
+    const topics = bookChapters[chapterName]?.[sectionName] || [];
     let html = '<label>✅ 今日進度 (可複選)</label>';
     html += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 8px; border-radius: 8px;">';
     topics.forEach((topic, index) => {
-        const progressPath = `${bookName} / ${chapterName} / ${sectionName}`;
+        const progressPath = `${displayBookName(bookName.split('||')[0])} / ${chapterName} / ${sectionName}`;
         const uniqueId = `topic-${sectionName.replace(/\s/g, '_')}-${index}`;
         html += `<div class="unit-row">
                    <input type="checkbox" id="${htmlEscape(uniqueId)}" value="${htmlEscape(progressPath)}" data-topic-name="${htmlEscape(topic)}">
@@ -5691,9 +5765,9 @@ function buildProgressIndex() {
     const subjectKeys = selectedSubject ? [selectedSubject] : Object.keys(BOOKS);
     const rows = [];
     subjectKeys.forEach(subjectKey => {
-        const books = BOOKS[subjectKey] || {};
-        Object.keys(books).filter(bookMatchesLevel).forEach(bookName => {
-            const chapters = books[bookName] || {};
+        getBookGroups(subjectKey).forEach(group => {
+            const bookName = group.display;
+            const chapters = mergedBookChapters(subjectKey, group.names.join('||'));
             Object.keys(chapters).forEach(chapterName => {
                 const sections = chapters[chapterName] || {};
                 Object.keys(sections).forEach(sectionName => {
@@ -5915,15 +5989,16 @@ function generate() {
         let progressPath = '';
         let progressName = '';
         
+        const cleanBookName = displayBookName(String(bookName || '').split('||')[0]);
         if (sectionName) {
-            progressPath = `${bookName} / ${chapterName} / ${sectionName}`;
+            progressPath = `${cleanBookName} / ${chapterName} / ${sectionName}`;
             progressName = sectionName;
         } else if (chapterName) {
-            progressPath = `${bookName} / ${chapterName}`;
+            progressPath = `${cleanBookName} / ${chapterName}`;
             progressName = chapterName;
         } else if (bookName) {
-            progressPath = `${bookName}`;
-            progressName = bookName;
+            progressPath = cleanBookName;
+            progressName = cleanBookName;
         }
         if (progressPath && progressName) {
              progressToOutput.push({ path: progressPath, topic: progressName });
