@@ -5445,18 +5445,6 @@ function addToCache() {
             } else if (bookName) {
                 progressPath = `${bookName}`;
                 progressName = bookName;
-            } else {
-                if (typeof BOOKS !== 'undefined' && BOOKS[subjectKey]) {
-                    Object.keys(BOOKS[subjectKey]).forEach(bName => {
-                        itemsToCache.push({ path: bName, topic: subjectName });
-                    });
-                    itemsToCache.forEach(item => {
-                        const isDuplicate = progressCache.some(p => p.path === item.path && p.topic === item.topic);
-                        if (!isDuplicate) progressCache.push(item);
-                    });
-                    saveCache();
-                    return;
-                }
             }
         }
         if (progressPath && progressName) {
@@ -5887,10 +5875,6 @@ function generate() {
         } else if (bookName) {
             progressPath = `${bookName}`;
             progressName = bookName;
-        } else if (subjectKey && BOOKS[subjectKey]) {
-             Object.keys(BOOKS[subjectKey]).forEach(bName => {
-                 progressToOutput.push({ path: bName, topic: subjectName });
-             });
         }
         if (progressPath && progressName) {
              progressToOutput.push({ path: progressPath, topic: progressName });
