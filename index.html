@@ -7,27 +7,48 @@
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  background:#f5f7fb;margin:0;padding:12px;color:#222;max-width:520px;margin-left:auto;margin-right:auto;}
-h1{text-align:center;font-size:1.5rem;margin:12px 0 14px 0;}
-.card{background:#fff;border-radius:12px;padding:12px 10px;margin-bottom:12px;
-  box-shadow:0 2px 8px rgba(0,20,50,0.06);}
-label{font-weight:600;display:block;margin-top:6px;margin-bottom:2px;}
+  background:linear-gradient(180deg,#eff8ff 0%,#fff7ed 48%,#f8fafc 100%);
+  margin:0;padding:12px;color:#1f2937;max-width:520px;margin-left:auto;margin-right:auto;}
+h1{text-align:center;font-size:1.55rem;margin:12px 0 14px 0;color:#1d4ed8;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);}
+.card{background:rgba(255,255,255,.96);border:1px solid rgba(148,163,184,.22);
+  border-radius:14px;padding:13px 11px;margin-bottom:12px;
+  box-shadow:0 8px 22px rgba(37,99,235,0.08);}
+label{font-weight:800;display:block;margin-top:6px;margin-bottom:4px;color:#334155;}
 input,select,textarea{width:100%;padding:8px;border-radius:8px;font-size:1rem;
-  border:1px solid #ccc;box-sizing:border-box;margin-top:2px;}
+  border:1px solid #cbd5e1;box-sizing:border-box;margin-top:2px;background:#ffffff;}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(59,130,246,.16);border-color:#3b82f6;}
 textarea{resize:vertical;font-size:1rem;}
 button{background:#2563eb;color:white;border:none;border-radius:8px;padding:9px 12px;
-  margin-top:8px;cursor:pointer;font-weight:bold;font-size:1rem;margin-right:6px;}
-button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange{background:#f59e0b;}
+  margin-top:8px;cursor:pointer;font-weight:bold;font-size:1rem;margin-right:6px;
+  box-shadow:0 4px 10px rgba(37,99,235,.18);}
+button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange{background:#f97316;}
 .section{border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px;}
 .chip{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #cbd5e1;
-  margin:4px 3px 3px 0;background:#eef3fc;font-size:0.93rem;cursor:pointer;}
-.chip:hover{background:#e2e8f0;}
-.output{font-family:"Noto Sans Mono","Consolas",monospace;border-radius:8px;
-  line-height:1.6;background:#fff;border:1px solid #e5e7eb;padding:14px 12px;margin-top:10px;
-  font-size:1.05rem;white-space:pre-wrap;letter-spacing:0.012em;}
+  margin:4px 3px 3px 0;background:#e0f2fe;color:#075985;font-size:0.93rem;cursor:pointer;
+  font-weight:700;}
+.chip:nth-child(3n+2){background:#fef3c7;color:#92400e;}
+.chip:nth-child(3n){background:#dcfce7;color:#166534;}
+.chip:hover{filter:brightness(.96);transform:translateY(-1px);}
+.quick-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
+.output{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;border-radius:12px;
+  line-height:1.55;background:#ffffff;border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
+  font-size:1rem;letter-spacing:0;box-shadow:0 8px 22px rgba(20,35,70,0.08);}
+.output-header{border-bottom:2px solid #2563eb;padding-bottom:10px;margin-bottom:12px;}
+.output-title{font-size:1.28rem;font-weight:800;color:#1e3a8a;margin:0;}
+.output-subtitle{font-size:0.92rem;color:#64748b;margin-top:3px;}
+.output-grid{display:grid;gap:10px;}
+.output-item{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start;
+  padding:10px 0;border-bottom:1px solid #edf2f7;}
+.output-item:last-child{border-bottom:none;}
+.output-label{font-weight:800;color:#334155;white-space:nowrap;}
+.output-value{color:#111827;white-space:pre-wrap;word-break:break-word;}
+.output-progress{padding-left:0;margin:0;list-style:none;}
+.output-progress li{padding:2px 0;}
 @media (max-width:520px){
   body{padding:4px;}
-  .output{font-size:1.09rem;padding:8px 6px;}
+  .output{font-size:1rem;padding:14px 12px;}
+  .output-item{grid-template-columns:1fr;gap:4px;}
   input,select,textarea{font-size:1.01rem;}
 }
 .select-group { display: flex; gap: 5px; }
@@ -48,7 +69,7 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
 <div class="card">
   <label>🏫 班級模板</label>
   <div class="select-group">
-    <select id="gradeSelect">
+    <select id="gradeSelect" onchange="syncProgressFromTemplate()">
       <option>小一</option>
       <option>小二</option>
       <option>小三</option>
@@ -62,7 +83,7 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
       <option>高二</option>
       <option>高三</option>
     </select>
-    <select id="subjectSelect">
+    <select id="subjectSelect" onchange="syncProgressFromTemplate()">
       <option>國文</option>
       <option>英文</option>
       <option>數學</option>
@@ -77,7 +98,7 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
       <option>公民</option>
       <option>其他</option>
     </select>
-    <select id="classTypeSelect">
+    <select id="classTypeSelect" onchange="syncProgressFromTemplate()">
       <option>進度</option>
       <option>輔導</option>
       <option>總複習</option>
@@ -137,6 +158,13 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
     <label>✏️ 自訂進度</label>
     <input id="customProgressPath" placeholder="例：段考檢討 / 講義補充 / 第3回">
     <input id="customProgressTopic" placeholder="例：錯題訂正、考前複習（可空白）">
+    <div class="quick-row">
+      <span class="chip" onclick="appendCustomProgress('段考檢討')">段考檢討</span>
+      <span class="chip" onclick="appendCustomProgress('考前複習')">考前複習</span>
+      <span class="chip" onclick="appendCustomProgress('講義補充')">講義補充</span>
+      <span class="chip" onclick="appendCustomProgress('錯題訂正')">錯題訂正</span>
+      <span class="chip" onclick="appendCustomProgress('題型演練')">題型演練</span>
+    </div>
     <button class="green" onclick="addCustomProgress()">＋加入自訂進度</button>
   </div>
 
@@ -153,7 +181,7 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
   <div class="section">
     <label>📄 頁數</label>
     <input id="pages" placeholder="例：p.45~52">
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+    <div class="quick-row">
       <span class="chip" onclick="appendPages('p. ')">p. </span>
       <span class="chip" onclick="appendPages('p. 5~8')">p. 5~8</span>
       <span class="chip" onclick="appendPages('p. 10~15')">p. 10~15</span>
@@ -164,10 +192,24 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
   <div class="section">
     <label>🧾 小考</label>
     <input id="quiz" placeholder="例：第2章小考">
+    <div class="quick-row">
+      <span class="chip" onclick="appendFieldText('quiz','隨堂小考')">隨堂小考</span>
+      <span class="chip" onclick="appendFieldText('quiz','第1章小考')">第1章小考</span>
+      <span class="chip" onclick="appendFieldText('quiz','單字小考')">單字小考</span>
+      <span class="chip" onclick="appendFieldText('quiz','公式測驗')">公式測驗</span>
+      <span class="chip" onclick="appendFieldText('quiz','無')">無</span>
+    </div>
   </div>
   <div class="section">
     <label>🏠 回家作業</label>
     <textarea id="homework" rows="2" placeholder="例：講義 p.53~55＋習題"></textarea>
+    <div class="quick-row">
+      <span class="chip" onclick="appendHomework('完成講義')">完成講義</span>
+      <span class="chip" onclick="appendHomework('訂正錯題')">訂正錯題</span>
+      <span class="chip" onclick="appendHomework('複習今日進度')">複習今日進度</span>
+      <span class="chip" onclick="appendHomework('預習下次範圍')">預習下次範圍</span>
+      <span class="chip" onclick="appendHomework('背誦重點')">背誦重點</span>
+    </div>
     <div id="sentenceChips"></div>
     <input id="newSentence" placeholder="加到常用作業句庫（右鍵刪）">
     <button class="green" onclick="addSentence()">＋句庫</button>
@@ -178,6 +220,7 @@ button.danger{background:#ef4444;}button.green{background:#22c55e;}button.orange
   <div class="button-row">
     <button class="orange" onclick="generate()">🚀 產生</button>
     <button onclick="copyOutput()">📋 複製</button>
+    <button class="green" onclick="saveOutputImage()">🖼️ 另存圖片</button>
     <button class="danger" onclick="clearAll(true)">🧹 清空</button>
   </div>
   <div id="output" class="output" style="display:none"></div>
@@ -5358,10 +5401,11 @@ function renderCache() {
         const lastPart = pathParts.slice(-1)[0];
         const isPathOnly = topics.length === 1 && topics[0] === lastPart;
         
+        const displayPath = displayProgressPath(path);
         if (isPathOnly) {
-             html += `<div class="cache-item">‧ ${path}</div>`;
+             html += `<div class="cache-item">‧ ${htmlEscape(displayPath)}</div>`;
         } else {
-             html += `<div class="cache-item">‧ ${path} <br> (${combinedTopics})</div>`;
+             html += `<div class="cache-item">‧ ${htmlEscape(displayPath)} <br> (${htmlEscape(combinedTopics)})</div>`;
         }
     });
     cacheDiv.innerHTML = html;
@@ -5457,6 +5501,21 @@ function clearCache(showConfirm = false) {
 
 function appendPages(text) { document.getElementById("pages").value = text.trim(); }
 
+function appendFieldText(id, text, separator = '＋') {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const value = field.value.trim();
+    if (!value) {
+        field.value = text;
+    } else if (!value.includes(text)) {
+        field.value = value + separator + text;
+    }
+}
+
+function appendCustomProgress(text) {
+    appendFieldText('customProgressPath', text, ' / ');
+}
+
 // ================ 級聯選單功能 ================
 function htmlEscape(value) {
     return String(value ?? '')
@@ -5474,7 +5533,23 @@ function selectedLevelPrefix() {
 function bookMatchesLevel(bookName) {
     const level = selectedLevelPrefix();
     if (!level) return true;
+    if (!/^(國小|國中|高中)/.test(bookName)) return level === '高中';
     return bookName.startsWith(level);
+}
+
+function displayBookName(bookName) {
+    return String(bookName || '')
+        .replace(/^(國小|國中|高中)/, '')
+        .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合)版/, '')
+        .replace(/（\d+學年）|\(\d+學年\)/g, '')
+        .trim();
+}
+
+function displayProgressPath(path) {
+    return String(path || '')
+        .split(' / ')
+        .map((part, index) => index === 0 ? displayBookName(part) : part)
+        .join(' / ');
 }
 
 function resetLowerProgressAreas() {
@@ -5501,7 +5576,7 @@ function loadBooks() {
     let html = '<label>📖 冊別</label>';
     html += `<select id="bookSelect" onchange="loadChapters()">
                 <option value="">--選冊別--</option>
-                ${books.map(b => `<option value="${htmlEscape(b)}">${htmlEscape(b)}</option>`).join('')}
+                ${books.map(b => `<option value="${htmlEscape(b)}">${htmlEscape(displayBookName(b))}</option>`).join('')}
              </select>`;
     html += '<div id="chapterSelectArea" style="margin-top:10px;"></div>';
     html += '<div id="sectionSelectArea" style="margin-top:10px;"></div>';
@@ -5587,10 +5662,11 @@ function buildProgressIndex() {
                 Object.keys(sections).forEach(sectionName => {
                     const topics = sections[sectionName] || [];
                     topics.forEach(topic => {
+                        const path = `${bookName} / ${chapterName} / ${sectionName}`;
                         rows.push({
-                            path: `${bookName} / ${chapterName} / ${sectionName}`,
+                            path,
                             topic,
-                            text: `${bookName} ${chapterName} ${sectionName} ${topic}`,
+                            text: `${displayProgressPath(path)} ${topic}`,
                         });
                     });
                 });
@@ -5623,7 +5699,7 @@ function searchProgress() {
         const id = `search-topic-${index}`;
         html += `<div class="unit-row">
                    <input type="checkbox" id="${id}" value="${htmlEscape(item.path)}" data-topic-name="${htmlEscape(item.topic)}">
-                   <label for="${id}" class="unit-label">${htmlEscape(item.path)}<br>(${htmlEscape(item.topic)})</label>
+                   <label for="${id}" class="unit-label">${htmlEscape(displayProgressPath(item.path))}<br>(${htmlEscape(item.topic)})</label>
                  </div>`;
     });
     html += '</div>';
@@ -5678,12 +5754,53 @@ function fillTemplate() {
   const type = document.getElementById("classTypeSelect").value || "";
   const subj = document.getElementById("subjectSelect").value || "";
   document.getElementById("customClassName").value = grade + subj + type;
+  syncProgressFromTemplate();
 }
 function clearTemplates(showConfirm = false) {
     if (showConfirm && !confirm("確定清空所有班級模板嗎？")) return;
     templates = [];
     saveTemplates();
     renderTemplates();
+}
+
+function levelFromGrade(grade) {
+  if (/^小/.test(grade)) return '國小';
+  if (/^國/.test(grade)) return '國中';
+  if (/^高/.test(grade)) return '高中';
+  return '';
+}
+
+function subjectKeyFromName(name) {
+  const map = {
+    '國文': 'chinese',
+    '國語': 'chinese',
+    '英文': 'english',
+    '英語': 'english',
+    '數學': 'math',
+    '社會': 'society',
+    '自然': 'science',
+    '物理': 'physics',
+    '化學': 'chemistry',
+    '生物': 'biology',
+    '地科': 'earth',
+    '歷史': 'history',
+    '地理': 'geography',
+    '公民': 'civics',
+    '其他': 'other',
+  };
+  return map[name] || '';
+}
+
+function syncProgressFromTemplate() {
+  const grade = document.getElementById("gradeSelect")?.value || "";
+  const subjectName = document.getElementById("subjectSelect")?.value || "";
+  const level = levelFromGrade(grade);
+  const subjectKey = subjectKeyFromName(subjectName);
+  const levelSelect = document.getElementById('levelFilter');
+  const subjectSelect = document.getElementById('subject');
+  if (levelSelect && level) levelSelect.value = level;
+  if (subjectSelect && subjectKey) subjectSelect.value = subjectKey;
+  loadBooks();
 }
 
 // ================ 作業句庫 ================
@@ -5800,24 +5917,30 @@ function generate() {
       const selectedSubjectText = subjectDropdown ? subjectDropdown.options[subjectDropdown.selectedIndex].text : '';
       
       if (topics.length === 1 && (topics[0] === lastPart || topics[0] === selectedSubjectText)) {
-          progressLines.push(`‧ ${path}`);
+          progressLines.push(`‧ ${displayProgressPath(path)}`);
       } else {
-          progressLines.push(`‧ ${path} (${combinedTopics})`);
+          progressLines.push(`‧ ${displayProgressPath(path)} (${combinedTopics})`);
       }
     });
     const progressOutput = progressLines.join('\n');
 
-    let result = [];
-    if (className) result.push(`🏫 班級\n${className}`);
-    if (date) result.push(`🗓️ 日期\n${date}`);
-    if (progressOutput) result.push(`📘 今日進度\n${progressOutput}`);
-    if (pages) result.push(`📄 頁數\n${pages}`);
-    if (quiz) result.push(`🧾 小考\n${quiz}`);
-    if (homework) result.push(`🏠 作業\n${homework}`);
+    const sections = [];
+    if (className) sections.push({ label: '班級', value: className });
+    if (date) sections.push({ label: '日期', value: date });
+    if (progressOutput) sections.push({ label: '今日進度', value: progressOutput, type: 'progress' });
+    if (pages) sections.push({ label: '頁數', value: pages });
+    if (quiz) sections.push({ label: '小考', value: quiz });
+    if (homework) sections.push({ label: '作業', value: homework });
+
+    const plainText = sections
+      .map(section => `${section.label}\n${section.value}`)
+      .join('\n\n')
+      .trim();
     
     const out = document.getElementById("output");
     out.style.display="block";
-    out.textContent = result.join('\n').trim();
+    out.dataset.copyText = plainText;
+    out.innerHTML = renderOutputHtml(sections, date);
     out.scrollIntoView({behavior:"smooth"});
 
     if (progressCache.length > 0) {
@@ -5826,11 +5949,71 @@ function generate() {
     }
 }
 
+function renderOutputHtml(sections, date) {
+    const rows = sections.map(section => {
+        const valueHtml = section.type === 'progress'
+            ? `<ul class="output-progress">${section.value.split('\n').filter(Boolean).map(line => `<li>${htmlEscape(line)}</li>`).join('')}</ul>`
+            : htmlEscape(section.value);
+        return `<div class="output-item">
+                  <div class="output-label">${htmlEscape(section.label)}</div>
+                  <div class="output-value">${valueHtml}</div>
+                </div>`;
+    }).join('');
+    return `<div class="output-header">
+              <div class="output-title">教學日誌</div>
+              <div class="output-subtitle">${htmlEscape(date || formatDate(new Date()))}</div>
+            </div>
+            <div class="output-grid">${rows}</div>`;
+}
+
 function copyOutput(){
-    const text=document.getElementById("output").textContent;
+    const out = document.getElementById("output");
+    const text = out.dataset.copyText || out.textContent;
     if(!text) return;
     navigator.clipboard.writeText(text).then(() => {
         alert("已複製！");
+    });
+}
+
+function saveOutputImage() {
+    const out = document.getElementById("output");
+    if (!out || out.style.display === "none" || !out.innerHTML.trim()) {
+        alert("請先產生內容");
+        return;
+    }
+
+    loadHtml2Canvas().then(() => {
+        return html2canvas(out, {
+            backgroundColor: '#ffffff',
+            scale: Math.max(2, window.devicePixelRatio || 1),
+            useCORS: true,
+        });
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `教學日誌_${formatDate(new Date())}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }).catch(() => {
+        alert("圖片產生失敗，請再試一次");
+    });
+}
+
+function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-html2canvas]');
+        if (existing) {
+            existing.addEventListener('load', resolve, { once: true });
+            existing.addEventListener('error', reject, { once: true });
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.async = true;
+        script.dataset.html2canvas = 'true';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
     });
 }
 
@@ -5842,12 +6025,17 @@ function clearAll(showConfirm = false){
     document.getElementById("quiz").value = "";
     document.getElementById("homework").value = "";
     document.getElementById("customClassName").value = "";
+    if (document.getElementById("progressSearch")) document.getElementById("progressSearch").value = "";
+    if (document.getElementById("searchResults")) document.getElementById("searchResults").innerHTML = "";
+    if (document.getElementById("customProgressPath")) document.getElementById("customProgressPath").value = "";
+    if (document.getElementById("customProgressTopic")) document.getElementById("customProgressTopic").value = "";
     document.getElementById("output").textContent = "";
+    document.getElementById("output").dataset.copyText = "";
     document.getElementById("output").style.display="none";
     progressCache = [];
     saveCache();
     setToday();
-    if (document.getElementById('subject')) document.getElementById('subject').selectedIndex = 0;
+    syncProgressFromTemplate();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -5855,6 +6043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCache();
     renderTemplates();
     renderSentences();
+    syncProgressFromTemplate();
 });
 </script>
 </body>
