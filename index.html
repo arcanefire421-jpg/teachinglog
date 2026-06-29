@@ -12,18 +12,18 @@ body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
 h1{text-align:center;font-size:1.55rem;margin:12px 0 14px 0;color:#1d4ed8;
   text-shadow:0 1px 0 rgba(255,255,255,.8);}
 .card{background:rgba(255,255,255,.96);border:1px solid rgba(148,163,184,.22);
-  border-radius:14px;padding:13px 11px;margin-bottom:12px;
+  border-radius:14px;padding:11px 10px;margin-bottom:10px;
   box-shadow:0 8px 22px rgba(37,99,235,0.08);}
 label{font-weight:800;display:block;margin-top:6px;margin-bottom:4px;color:#334155;}
-input,select,textarea{width:100%;padding:8px;border-radius:8px;font-size:1rem;
+input,select,textarea{width:100%;padding:7px 8px;border-radius:8px;font-size:1rem;
   border:1px solid #cbd5e1;box-sizing:border-box;margin-top:2px;background:#ffffff;}
 input:focus,select:focus,textarea:focus{outline:3px solid rgba(59,130,246,.16);border-color:#3b82f6;}
 textarea{resize:vertical;font-size:1rem;}
-button{background:#2563eb;color:white;border:none;border-radius:8px;padding:9px 12px;
+button{background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 11px;
   margin-top:8px;cursor:pointer;font-weight:bold;font-size:1rem;margin-right:6px;
   box-shadow:0 4px 10px rgba(37,99,235,.18);}
 button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange{background:#f97316;}
-.section{border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px;}
+.section{border-top:1px solid #e5e7eb;margin-top:7px;padding-top:7px;}
 .chip{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #cbd5e1;
   margin:4px 3px 3px 0;background:#e0f2fe;color:#075985;font-size:0.93rem;cursor:pointer;
   font-weight:700;}
@@ -31,6 +31,21 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .chip:nth-child(3n){background:#dcfce7;color:#166534;}
 .chip:hover{filter:brightness(.96);transform:translateY(-1px);}
 .quick-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
+.subject-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:#eef6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 10px;margin-top:6px;}
+.subject-summary strong{color:#1d4ed8;}
+.link-button{background:#ffffff;color:#2563eb;border:1px solid #bfdbfe;box-shadow:none;
+  padding:6px 9px;margin:0;font-size:.9rem;}
+.compact-controls{display:none;margin-top:8px;}
+.compact-controls.open{display:block;}
+.cache-actions{display:flex;justify-content:flex-end;gap:6px;align-items:center;}
+.cache-actions button{margin-top:0;}
+.cache-list{display:grid;gap:7px;}
+.cache-item{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+  background:#ffffff;border:1px solid #bfdbfe;border-radius:9px;padding:8px 9px;color:#1e40af;}
+.cache-text{line-height:1.35;word-break:break-word;}
+.cache-delete{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;box-shadow:none;
+  min-width:34px;padding:4px 8px;margin:0;font-size:.9rem;}
 .output{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;border-radius:12px;
   line-height:1.55;background:#ffffff;border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
   font-size:1rem;letter-spacing:0;box-shadow:0 8px 22px rgba(20,35,70,0.08);}
@@ -54,13 +69,12 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .select-group { display: flex; gap: 5px; }
 .select-group select { width: 33.33%; margin-top: 0; }
 .select-group + input { margin-top: 5px; }
-.button-row { display: flex; gap: 5px; margin-top: 10px; }
+.button-row { display: flex; gap: 5px; margin-top: 10px; flex-wrap:wrap; }
 .button-row button { margin-top: 0; margin-right: 0; flex-grow: 1; width: auto; }
 .unit-row{ display: flex; align-items: flex-start; margin-top: 5px; line-height: 1.2; }
 .unit-row input[type=checkbox]{ width: auto; margin: 2px 5px 0 0; transform: scale(1.1); flex-shrink: 0; }
 .unit-label{ flex: 1; display: inline; margin-top: 0; }
-#progressCache { margin-top: 10px; border: 1px dashed #2563eb; background: #f0f7ff; padding: 10px; border-radius: 8px; max-height: 150px; overflow-y: auto; font-size: 0.95rem; }
-#progressCache .cache-item { margin-bottom: 5px; color: #1e40af; line-height: 1.3; }
+#progressCache { margin-top: 10px; border: 1px dashed #2563eb; background: #f0f7ff; padding: 10px; border-radius: 10px; max-height: 190px; overflow-y: auto; font-size: 0.95rem; }
 </style>
 </head>
 <body>
@@ -122,28 +136,34 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 
 <div class="card">
   <label>📚 科目 / 進度選單</label>
-  <select id="levelFilter" onchange="loadBooks()">
-    <option value="">全部學制</option>
-    <option value="國小">國小</option>
-    <option value="國中">國中</option>
-    <option value="高中">高中</option>
-  </select>
-  <select id="subject" onchange="loadBooks()">
-    <option value="">--選科目--</option>
-    <option value="chinese">國文</option>
-    <option value="english">英文</option>
-    <option value="math">數學</option>
-    <option value="society">社會</option>
-    <option value="science">自然</option>
-    <option value="physics">物理</option>
-    <option value="chemistry">化學</option>
-    <option value="biology">生物</option>
-    <option value="earth">地科</option>
-    <option value="history">歷史</option>
-    <option value="geography">地理</option>
-    <option value="civics">公民</option>
-    <option value="other">其他</option>
-  </select>
+  <div class="subject-summary">
+    <div>目前：<strong id="subjectSummary">自動帶入</strong></div>
+    <button type="button" class="link-button" onclick="toggleSubjectControls()">更改科目</button>
+  </div>
+  <div id="subjectControls" class="compact-controls">
+    <select id="levelFilter" onchange="loadBooks()">
+      <option value="">全部學制</option>
+      <option value="國小">國小</option>
+      <option value="國中">國中</option>
+      <option value="高中">高中</option>
+    </select>
+    <select id="subject" onchange="loadBooks()">
+      <option value="">--選科目--</option>
+      <option value="chinese">國文</option>
+      <option value="english">英文</option>
+      <option value="math">數學</option>
+      <option value="society">社會</option>
+      <option value="science">自然</option>
+      <option value="physics">物理</option>
+      <option value="chemistry">化學</option>
+      <option value="biology">生物</option>
+      <option value="earth">地科</option>
+      <option value="history">歷史</option>
+      <option value="geography">地理</option>
+      <option value="civics">公民</option>
+      <option value="other">其他</option>
+    </select>
+  </div>
 
   <div class="section">
     <label>🔎 搜尋進度</label>
@@ -168,7 +188,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
     <button class="green" onclick="addCustomProgress()">＋加入自訂進度</button>
   </div>
 
-  <div id="cacheArea" class="section" style="text-align: center;">
+  <div id="cacheArea" class="section cache-actions">
       <button class="orange" onclick="addToCache()">➡️ 存入暫存區</button>
       <button class="danger" onclick="clearCache(true)">🗑️ 清空暫存</button>
   </div>
@@ -5394,7 +5414,7 @@ function renderCache() {
         }
     });
 
-    let html = '';
+    let html = '<div class="cache-list">';
     groupedCache.forEach((topics, path) => {
         const combinedTopics = topics.join(' ＋ ');
         const pathParts = path.split(' / ');
@@ -5402,13 +5422,21 @@ function renderCache() {
         const isPathOnly = topics.length === 1 && topics[0] === lastPart;
         
         const displayPath = displayProgressPath(path);
+        const deleteButton = `<button type="button" class="cache-delete" onclick="deleteCachePath('${encodeURIComponent(path)}')">刪</button>`;
         if (isPathOnly) {
-             html += `<div class="cache-item">‧ ${htmlEscape(displayPath)}</div>`;
+             html += `<div class="cache-item"><div class="cache-text">‧ ${htmlEscape(displayPath)}</div>${deleteButton}</div>`;
         } else {
-             html += `<div class="cache-item">‧ ${htmlEscape(displayPath)} <br> (${htmlEscape(combinedTopics)})</div>`;
+             html += `<div class="cache-item"><div class="cache-text">‧ ${htmlEscape(displayPath)} <br> (${htmlEscape(combinedTopics)})</div>${deleteButton}</div>`;
         }
     });
+    html += '</div>';
     cacheDiv.innerHTML = html;
+}
+
+function deleteCachePath(encodedPath) {
+    const path = decodeURIComponent(encodedPath);
+    progressCache = progressCache.filter(item => item.path !== path);
+    saveCache();
 }
 
 function addToCache() {
@@ -5518,6 +5546,26 @@ function selectedLevelPrefix() {
     return levelSelect ? levelSelect.value : '';
 }
 
+function selectedSubjectLabel() {
+    const subjectSelect = document.getElementById('subject');
+    if (!subjectSelect || !subjectSelect.value) return '';
+    const option = subjectSelect.options[subjectSelect.selectedIndex];
+    return option ? option.text : '';
+}
+
+function updateSubjectSummary() {
+    const summary = document.getElementById('subjectSummary');
+    if (!summary) return;
+    const level = selectedLevelPrefix();
+    const subject = selectedSubjectLabel();
+    summary.textContent = [level, subject].filter(Boolean).join(' / ') || '未選擇';
+}
+
+function toggleSubjectControls() {
+    const controls = document.getElementById('subjectControls');
+    if (controls) controls.classList.toggle('open');
+}
+
 function bookMatchesLevel(bookName) {
     const level = selectedLevelPrefix();
     if (!level) return true;
@@ -5551,6 +5599,7 @@ function loadBooks() {
     const subjectKey = document.getElementById('subject').value;
     const bookArea = document.getElementById('bookArea');
     if (!bookArea) return;
+    updateSubjectSummary();
     bookArea.innerHTML = '';
     searchProgress();
 
