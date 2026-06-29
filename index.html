@@ -46,6 +46,13 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .cache-text{line-height:1.35;word-break:break-word;}
 .cache-delete{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;box-shadow:none;
   min-width:34px;padding:4px 8px;margin:0;font-size:.9rem;}
+.archive-list{display:grid;gap:8px;margin-top:8px;}
+.archive-item{background:#ffffff;border:1px solid #dbeafe;border-radius:11px;padding:9px;
+  display:grid;gap:7px;}
+.archive-title{font-weight:900;color:#1e3a8a;}
+.archive-meta{font-size:.86rem;color:#64748b;}
+.archive-actions{display:flex;gap:5px;flex-wrap:wrap;}
+.archive-actions button{font-size:.9rem;padding:6px 8px;margin:0;box-shadow:none;}
 .output{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;border-radius:12px;
   line-height:1.55;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
   font-size:1rem;letter-spacing:0;box-shadow:0 8px 22px rgba(20,35,70,0.08);}
@@ -262,6 +269,20 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
     <button class="danger" onclick="clearAll(true)">🧹 清空</button>
   </div>
   <div id="output" class="output" style="display:none"></div>
+</div>
+
+<div class="card">
+  <label>🗂️ 最近存檔</label>
+  <div class="quick-row">
+    <button onclick="saveCurrentArchive()">💾 存目前日誌</button>
+    <select id="archiveGroupBy" onchange="renderArchives()" style="width:auto;min-width:130px;">
+      <option value="date">依日期分類</option>
+      <option value="class">依班級分類</option>
+      <option value="subject">依科目分類</option>
+    </select>
+    <button class="danger" onclick="clearArchives(true)">清空存檔</button>
+  </div>
+  <div id="archiveList" class="archive-list">目前沒有存檔。</div>
 </div>
 
 <script>
@@ -5410,8 +5431,11 @@ function safeJSONParse(key, defaultValue) {
 let progressCache = safeJSONParse('teachingLogCache', []);
 let templates = safeJSONParse('teachingLogTemplates', []);
 let sentences = safeJSONParse('homeworkSentences', ["講義 p.X~Y", "習題卷", "考卷訂正", "複習指定範圍"]);
+let archives = safeJSONParse('teachingLogArchives', []);
+let currentArchivePayload = null;
 
 function saveCache() { localStorage.setItem('teachingLogCache', JSON.stringify(progressCache)); renderCache(); }
+function saveArchives() { localStorage.setItem('teachingLogArchives', JSON.stringify(archives)); renderArchives(); }
 
 function renderCache() {
     const cacheDiv = document.getElementById('progressCache');
@@ -6074,6 +6098,14 @@ function generate() {
       .map(section => `${section.label}\n${section.value}`)
       .join('\n\n')
       .trim();
+    currentArchivePayload = {
+      id: `${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      title: className || '教學日誌',
+      date: date || formatDate(new Date()),
+      sections,
+      plainText,
+    };
     
     const out = document.getElementById("output");
     out.style.display="block";
@@ -6117,6 +6149,124 @@ function renderOutputHtml(sections, date) {
               <div class="output-badge">今日紀錄</div>
             </div>
             <div class="output-grid">${rows}</div>`;
+}
+
+function sectionValue(sections, label) {
+    return sections.find(section => section.label === label)?.value || '';
+}
+
+function subjectFromClassName(className) {
+    const subjects = ['國文', '國語', '英文', '英語', '數學', '社會', '自然', '物理', '化學', '生物', '地科', '歷史', '地理', '公民'];
+    return subjects.find(subject => className.includes(subject)) || '未分類';
+}
+
+function archiveGroupKey(item, groupBy) {
+    if (groupBy === 'class') return item.className || '未填班級';
+    if (groupBy === 'subject') return item.subject || '未分類';
+    return item.date || '未填日期';
+}
+
+function saveCurrentArchive() {
+    if (!currentArchivePayload) {
+        alert('請先產生日誌');
+        return;
+    }
+    const className = sectionValue(currentArchivePayload.sections, '班級');
+    const item = {
+        ...currentArchivePayload,
+        id: `${Date.now()}`,
+        className,
+        subject: subjectFromClassName(className),
+    };
+    archives.unshift(item);
+    saveArchives();
+}
+
+function renderArchives() {
+    const list = document.getElementById('archiveList');
+    if (!list) return;
+    if (!archives.length) {
+        list.innerHTML = '目前沒有存檔。';
+        return;
+    }
+    const groupBy = document.getElementById('archiveGroupBy')?.value || 'date';
+    const groups = new Map();
+    archives.forEach(item => {
+        const key = archiveGroupKey(item, groupBy);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+    });
+    let html = '';
+    groups.forEach((items, key) => {
+        html += `<div class="archive-title">${htmlEscape(key)} (${items.length})</div>`;
+        items.forEach(item => {
+            html += `<div class="archive-item">
+              <div>
+                <div class="archive-title">${htmlEscape(item.title || '教學日誌')}</div>
+                <div class="archive-meta">${htmlEscape(item.date || '')}　${htmlEscape(item.subject || '')}</div>
+              </div>
+              <div class="archive-actions">
+                <button onclick="loadArchive('${item.id}')">查看</button>
+                <button onclick="copyArchive('${item.id}')">複製</button>
+                <button onclick="downloadArchiveText('${item.id}')">文字檔</button>
+                <button class="green" onclick="saveArchiveImage('${item.id}')">圖片</button>
+                <button class="danger" onclick="deleteArchive('${item.id}')">刪除</button>
+              </div>
+            </div>`;
+        });
+    });
+    list.innerHTML = html;
+}
+
+function findArchive(id) {
+    return archives.find(item => item.id === id);
+}
+
+function loadArchive(id) {
+    const item = findArchive(id);
+    if (!item) return;
+    currentArchivePayload = item;
+    const out = document.getElementById('output');
+    out.style.display = 'block';
+    out.dataset.copyText = item.plainText || '';
+    out.innerHTML = renderOutputHtml(item.sections || [], item.date);
+    out.scrollIntoView({ behavior: 'smooth' });
+}
+
+function copyArchive(id) {
+    const item = findArchive(id);
+    if (item?.plainText) navigator.clipboard.writeText(item.plainText).then(() => alert('已複製！'));
+}
+
+function downloadTextFile(filename, text) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function downloadArchiveText(id) {
+    const item = findArchive(id);
+    if (!item) return;
+    downloadTextFile(`教學日誌_${item.date || formatDate(new Date())}.txt`, item.plainText || '');
+}
+
+function saveArchiveImage(id) {
+    loadArchive(id);
+    setTimeout(saveOutputImage, 50);
+}
+
+function deleteArchive(id) {
+    archives = archives.filter(item => item.id !== id);
+    saveArchives();
+}
+
+function clearArchives(showConfirm = false) {
+    if (showConfirm && !confirm('確定清空所有存檔嗎？')) return;
+    archives = [];
+    saveArchives();
 }
 
 function copyOutput(){
@@ -6196,6 +6346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCache();
     renderTemplates();
     renderSentences();
+    renderArchives();
     syncProgressFromTemplate();
 });
 </script>
