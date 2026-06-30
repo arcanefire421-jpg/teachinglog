@@ -5436,7 +5436,7 @@ BOOKS.other = BOOKS.other || {
 };
 
 const JUNIOR_NATURAL_BOOKS = {
-  "國中生物第一冊": {
+  "國中第一冊(生物)": {
     "第 1 章 生命世界與科學方法": {
       "1-1 多彩多姿的生命世界": ["生命現象", "生物生存的環境", "生物的生存策略", "生物圈的定義與範圍"],
       "1-2 探究自然的科學方法": ["科學方法", "實驗設計"],
@@ -5475,7 +5475,7 @@ const JUNIOR_NATURAL_BOOKS = {
       "6-3 體溫的恆定與血糖的恆定": ["體溫的調節與恆定", "血糖的恆定"],
     },
   },
-  "國中理化第一冊": {
+  "國中第三冊(理化)": {
     "實驗室常用器材": {
       "實驗室常用器材": ["實驗室常用器材"],
     },
@@ -5750,12 +5750,12 @@ function displayBookNameForSubject(bookName, subjectKey) {
     const displayName = displayBookName(bookName);
     if (subjectKey !== 'science' || selectedLevelPrefix() !== '國中') return displayName;
     const juniorNaturalMap = {
-        '第一冊': '生物第一冊',
-        '第二冊': '生物第二冊',
-        '第三冊': '理化第一冊',
-        '第四冊': '理化第二冊',
-        '第五冊': '理化第三冊',
-        '第六冊': '理化第四冊',
+        '第一冊': '第一冊(生物)',
+        '第二冊': '第二冊(生物)',
+        '第三冊': '第三冊(理化)',
+        '第四冊': '第四冊(理化)',
+        '第五冊': '第五冊(理化)',
+        '第六冊': '第六冊(理化)',
     };
     return juniorNaturalMap[displayName] || displayName;
 }
