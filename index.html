@@ -159,7 +159,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
       <option>總複習</option>
     </select>
   </div>
-  <input id="customClassName" placeholder="或自訂班級名稱（可空白）">
+  <input id="customClassName" placeholder="或自訂班級名稱（可空白）" oninput="syncProgressFromTemplate()">
   <button class="green" onclick="addTemplate()">＋新增模板</button>
   <button onclick="fillTemplate()">填入班名</button>
   <button class="danger" onclick="clearTemplates(true)">全清模板</button>
@@ -6125,7 +6125,10 @@ function addTemplate() {
     renderTemplates();
   }
 }
-function applyTemplate(name) { document.getElementById("customClassName").value = name; }
+function applyTemplate(name) {
+  document.getElementById("customClassName").value = name;
+  syncProgressFromTemplate();
+}
 function deleteTemplate(index, showConfirm = false) {
     if (showConfirm && !confirm(`確定刪除模板：${templates[index]} 嗎？`)) return;
     templates.splice(index, 1);
@@ -6174,11 +6177,25 @@ function subjectKeyFromName(name) {
   return map[name] || '';
 }
 
+function templateContextFromName(name) {
+  const text = String(name || '');
+  const gradeMatch = text.match(/(小[一二三四五六]|國[一二三]|高[一二三])/);
+  const subjectNames = ['國文', '國語', '英文', '英語', '數學', '社會', '自然', '物理', '化學', '生物', '地科', '歷史', '地理', '公民', '其他'];
+  const subjectName = subjectNames.find(subject => text.includes(subject)) || '';
+  return {
+    grade: gradeMatch ? gradeMatch[1] : '',
+    level: levelFromGrade(gradeMatch ? gradeMatch[1] : ''),
+    subjectKey: subjectKeyFromName(subjectName),
+  };
+}
+
 function syncProgressFromTemplate() {
-  const grade = document.getElementById("gradeSelect")?.value || "";
+  const customName = document.getElementById("customClassName")?.value.trim() || "";
+  const customContext = templateContextFromName(customName);
+  const grade = customContext.grade || document.getElementById("gradeSelect")?.value || "";
   const subjectName = document.getElementById("subjectSelect")?.value || "";
-  const level = levelFromGrade(grade);
-  const subjectKey = subjectKeyFromName(subjectName);
+  const level = customContext.level || levelFromGrade(grade);
+  const subjectKey = customContext.subjectKey || subjectKeyFromName(subjectName);
   const levelSelect = document.getElementById('levelFilter');
   const subjectSelect = document.getElementById('subject');
   if (levelSelect && level) levelSelect.value = level;
@@ -6486,14 +6503,20 @@ function loadArchive(id) {
     if (styleSelect) styleSelect.value = style;
     out.style.display = 'block';
     out.className = `output ${style === 'compact' ? 'compact' : ''}`;
-    out.dataset.copyText = item.plainText || '';
+    out.dataset.copyText = archiveCopyText(item);
     out.innerHTML = renderOutputHtml(item.sections || [], item.date, style);
     out.scrollIntoView({ behavior: 'smooth' });
 }
 
 function copyArchive(id) {
     const item = findArchive(id);
-    if (item?.plainText) navigator.clipboard.writeText(item.plainText).then(() => alert('已複製！'));
+    const text = archiveCopyText(item);
+    if (text) navigator.clipboard.writeText(text).then(() => alert('已複製！'));
+}
+
+function archiveCopyText(item) {
+    if (!item) return '';
+    return item.sections?.length ? formatCompactCopyText(item.sections) : (item.plainText || '');
 }
 
 function downloadTextFile(filename, text) {
@@ -6508,7 +6531,7 @@ function downloadTextFile(filename, text) {
 function downloadArchiveText(id) {
     const item = findArchive(id);
     if (!item) return;
-    downloadTextFile(`教學日誌_${item.date || formatDate(new Date())}.txt`, item.plainText || '');
+    downloadTextFile(`教學日誌_${item.date || formatDate(new Date())}.txt`, archiveCopyText(item));
 }
 
 function saveArchiveImage(id) {
