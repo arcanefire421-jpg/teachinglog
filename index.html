@@ -85,7 +85,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .output-progress{padding-left:0;margin:0;list-style:none;}
 .output-progress li{padding:6px 8px;margin:4px 0;border-radius:8px;background:rgba(255,255,255,.72);
   border:1px solid rgba(34,197,94,.18);}
-.output.compact{padding:12px;font-size:.95rem;}
+.output.compact{padding:12px;font-size:.95rem;width:max-content;max-width:100%;margin-left:0;margin-right:auto;}
 .output.compact .output-header{padding:9px 10px;margin-bottom:8px;}
 .output.compact .output-title{font-size:1.08rem;}
 .output.compact .output-subtitle{font-size:.84rem;}
@@ -109,6 +109,9 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .select-group + input { margin-top: 5px; }
 .button-row { display: flex; gap: 5px; margin-top: 10px; flex-wrap:wrap; }
 .button-row button { margin-top: 0; margin-right: 0; flex-grow: 1; width: auto; }
+.split-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;}
+.split-row label{margin-top:0;}
+.split-row input,.split-row select{margin-top:2px;}
 .unit-row{ display: flex; align-items: flex-start; margin-top: 5px; line-height: 1.2; }
 .unit-row input[type=checkbox]{ width: auto; margin: 2px 5px 0 0; transform: scale(1.1); flex-shrink: 0; }
 .unit-label{ flex: 1; display: inline; margin-top: 0; }
@@ -5515,8 +5518,13 @@ function addToCache() {
         const chapterSelect = document.getElementById('chapterSelect');
         const sectionSelect = document.getElementById('sectionSelect');
 
-        const bookName = bookSelect ? bookSelect.value : '';
-        const chapterName = chapterSelect ? chapterSelect.value : '';
+        const selectedBookName = bookSelect ? bookSelect.value : '';
+        const manualBookName = document.getElementById('manualBookInput') ? document.getElementById('manualBookInput').value.trim() : '';
+        const bookName = manualBookName || selectedBookName;
+        const isManualBook = !!manualBookName;
+        const selectedChapterName = chapterSelect ? chapterSelect.value : '';
+        const manualChapterName = document.getElementById('manualChapterInput') ? document.getElementById('manualChapterInput').value.trim() : '';
+        const chapterName = manualChapterName || selectedChapterName;
         const sectionName = sectionSelect ? sectionSelect.value : '';
 
         let progressPath = '';
@@ -5524,13 +5532,15 @@ function addToCache() {
 
         if (subjectKey) {
             if (sectionName) {
-                progressPath = `${displayBookName(bookName.split('||')[0])} / ${chapterName} / ${sectionName}`;
+                const cleanBook = cleanSelectedOrManualBook(bookName, isManualBook);
+                progressPath = [cleanBook, chapterName, sectionName].filter(Boolean).join(' / ');
                 progressName = sectionName;
             } else if (chapterName) {
-                progressPath = `${displayBookName(bookName.split('||')[0])} / ${chapterName}`;
+                const cleanBook = cleanSelectedOrManualBook(bookName, isManualBook);
+                progressPath = [cleanBook, chapterName].filter(Boolean).join(' / ');
                 progressName = chapterName;
             } else if (bookName) {
-                progressPath = `${displayBookName(bookName.split('||')[0])}`;
+                progressPath = `${cleanSelectedOrManualBook(bookName, isManualBook)}`;
                 progressName = progressPath;
             }
         }
@@ -5730,11 +5740,35 @@ function displayProgressPath(path) {
         .join(' / ');
 }
 
+function cleanSelectedOrManualBook(bookName, isManual) {
+    if (!bookName) return '';
+    return isManual ? bookName : displayBookName(String(bookName).split('||')[0]);
+}
+
 function resetLowerProgressAreas() {
     ['sectionSelectArea', 'topicArea'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
+}
+
+function renderChapterControls(chapters = []) {
+    const options = chapters.length
+        ? chapters.map(c => `<option value="${htmlEscape(c)}">${htmlEscape(c)}</option>`).join('')
+        : '';
+    return `<div class="split-row">
+              <div>
+                <label>📑 章節</label>
+                <select id="chapterSelect" onchange="loadSections()" ${chapters.length ? '' : 'disabled'}>
+                  <option value="">--選章節--</option>
+                  ${options}
+                </select>
+              </div>
+              <div>
+                <label>手動章節</label>
+                <input id="manualChapterInput" placeholder="例：第5單元_多位數的乘除">
+              </div>
+            </div>`;
 }
 
 function loadBooks() {
@@ -5752,12 +5786,20 @@ function loadBooks() {
         bookArea.innerHTML = '<div class="cache-item">此學制目前沒有這個科目的進度資料。</div>';
         return;
     }
-    let html = '<label>📖 冊別</label>';
-    html += `<select id="bookSelect" onchange="loadChapters()">
-                <option value="">--選冊別--</option>
-                ${bookGroups.map(group => `<option value="${htmlEscape(group.names.join('||'))}">${htmlEscape(group.display)}</option>`).join('')}
-             </select>`;
-    html += '<div id="chapterSelectArea" style="margin-top:10px;"></div>';
+    let html = `<div class="split-row">
+                  <div>
+                    <label>📖 冊別</label>
+                    <select id="bookSelect" onchange="loadChapters()">
+                      <option value="">--選冊別--</option>
+                      ${bookGroups.map(group => `<option value="${htmlEscape(group.names.join('||'))}">${htmlEscape(group.display)}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label>手動冊別</label>
+                    <input id="manualBookInput" placeholder="例：第九冊">
+                  </div>
+                </div>`;
+    html += `<div id="chapterSelectArea" style="margin-top:10px;">${renderChapterControls()}</div>`;
     html += '<div id="sectionSelectArea" style="margin-top:10px;"></div>';
     html += '<div id="topicArea" style="margin-top:10px;"></div>';
     bookArea.innerHTML = html;
@@ -5774,12 +5816,7 @@ function loadChapters() {
 
     const bookChapters = mergedBookChapters(subjectKey, bookName);
     const chapters = Object.keys(bookChapters);
-    let html = '<label>📑 章節</label>';
-    html += `<select id="chapterSelect" onchange="loadSections()">
-                <option value="">--選章節--</option>
-                ${chapters.map(c => `<option value="${htmlEscape(c)}">${htmlEscape(c)}</option>`).join('')}
-             </select>`;
-    chapterArea.innerHTML = html;
+    chapterArea.innerHTML = renderChapterControls(chapters);
 }
 
 function loadSections() {
@@ -6053,19 +6090,24 @@ function generate() {
         const subjectSelect = document.getElementById('subject');
         const subjectKey = subjectSelect ? subjectSelect.value : '';
         const subjectName = subjectSelect ? subjectSelect.options[subjectSelect.selectedIndex].text : '';
-        const bookName = document.getElementById('bookSelect') ? document.getElementById('bookSelect').value : '';
-        const chapterName = document.getElementById('chapterSelect') ? document.getElementById('chapterSelect').value : '';
+        const selectedBookName = document.getElementById('bookSelect') ? document.getElementById('bookSelect').value : '';
+        const manualBookName = document.getElementById('manualBookInput') ? document.getElementById('manualBookInput').value.trim() : '';
+        const bookName = manualBookName || selectedBookName;
+        const isManualBook = !!manualBookName;
+        const selectedChapterName = document.getElementById('chapterSelect') ? document.getElementById('chapterSelect').value : '';
+        const manualChapterName = document.getElementById('manualChapterInput') ? document.getElementById('manualChapterInput').value.trim() : '';
+        const chapterName = manualChapterName || selectedChapterName;
         const sectionName = document.getElementById('sectionSelect') ? document.getElementById('sectionSelect').value : '';
         
         let progressPath = '';
         let progressName = '';
         
-        const cleanBookName = displayBookName(String(bookName || '').split('||')[0]);
+        const cleanBookName = cleanSelectedOrManualBook(bookName, isManualBook);
         if (sectionName) {
-            progressPath = `${cleanBookName} / ${chapterName} / ${sectionName}`;
+            progressPath = [cleanBookName, chapterName, sectionName].filter(Boolean).join(' / ');
             progressName = sectionName;
         } else if (chapterName) {
-            progressPath = `${cleanBookName} / ${chapterName}`;
+            progressPath = [cleanBookName, chapterName].filter(Boolean).join(' / ');
             progressName = chapterName;
         } else if (bookName) {
             progressPath = cleanBookName;
@@ -6364,6 +6406,8 @@ function clearAll(showConfirm = false){
     if (document.getElementById("searchResults")) document.getElementById("searchResults").innerHTML = "";
     if (document.getElementById("customProgressPath")) document.getElementById("customProgressPath").value = "";
     if (document.getElementById("customProgressTopic")) document.getElementById("customProgressTopic").value = "";
+    if (document.getElementById("manualBookInput")) document.getElementById("manualBookInput").value = "";
+    if (document.getElementById("manualChapterInput")) document.getElementById("manualChapterInput").value = "";
     document.getElementById("output").textContent = "";
     document.getElementById("output").dataset.copyText = "";
     document.getElementById("output").style.display="none";
