@@ -5619,6 +5619,11 @@ function deleteCachePath(encodedPath) {
 
 function addToCache() {
     let itemsToCache = [];
+    const customItem = readCustomProgressItem();
+    if (customItem) {
+        itemsToCache.push(customItem);
+        clearCustomProgressInputs();
+    }
     const checks = document.querySelectorAll("#topicArea input[type=checkbox]:checked, #searchResults input[type=checkbox]:checked");
 
     if (checks.length > 0) {
@@ -5626,7 +5631,7 @@ function addToCache() {
             itemsToCache.push({ path: cb.value, topic: cb.dataset.topicName });
             cb.checked = false; 
         });
-    } else {
+    } else if (!customItem) {
         const subjectSelect = document.getElementById('subject');
         const subjectKey = subjectSelect ? subjectSelect.value : '';
         const subjectName = subjectSelect ? subjectSelect.options[subjectSelect.selectedIndex].text : '';
@@ -5679,19 +5684,30 @@ function addToCache() {
 }
 
 function addCustomProgress() {
+    const item = readCustomProgressItem();
+    if (!item) {
+        alert("請先輸入自訂進度");
+        return;
+    }
+    const isDuplicate = progressCache.some(p => p.path === item.path && p.topic === item.topic);
+    if (!isDuplicate) progressCache.push(item);
+    clearCustomProgressInputs();
+    saveCache();
+}
+
+function readCustomProgressItem() {
     const pathInput = document.getElementById('customProgressPath');
     const topicInput = document.getElementById('customProgressTopic');
     const path = pathInput ? pathInput.value.trim() : '';
     const topic = topicInput && topicInput.value.trim() ? topicInput.value.trim() : path;
-    if (!path) {
-        alert("請先輸入自訂進度");
-        return;
-    }
-    const isDuplicate = progressCache.some(p => p.path === path && p.topic === topic);
-    if (!isDuplicate) progressCache.push({ path, topic });
+    return path ? { path, topic } : null;
+}
+
+function clearCustomProgressInputs() {
+    const pathInput = document.getElementById('customProgressPath');
+    const topicInput = document.getElementById('customProgressTopic');
     if (pathInput) pathInput.value = '';
     if (topicInput) topicInput.value = '';
-    saveCache();
 }
 
 function clearCache(showConfirm = false) {
