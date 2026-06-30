@@ -6317,10 +6317,7 @@ function generate() {
     if (quiz) sections.push({ label: '小考', value: quiz });
     if (homework) sections.push({ label: '作業', value: homework });
 
-    const plainText = sections
-      .map(section => `${section.label}\n${section.value}`)
-      .join('\n\n')
-      .trim();
+    const plainText = formatCompactCopyText(sections);
     const outputStyle = document.getElementById('outputStyle')?.value || 'original';
     currentArchivePayload = {
       id: `${Date.now()}`,
@@ -6382,6 +6379,29 @@ function renderOutputHtml(sections, date, outputStyle = 'original') {
               <div class="output-badge">今日紀錄</div>
             </div>
             <div class="output-grid">${rows}</div>`;
+}
+
+function formatCompactCopyText(sections) {
+    const icons = {
+        '班級': '🏫',
+        '日期': '🗓️',
+        '今日進度': '📘',
+        '頁數': '📄',
+        '小考': '🧾',
+        '作業': '🏠',
+    };
+    return sections
+        .map(section => {
+            const icon = icons[section.label] || '✨';
+            const value = String(section.value || '')
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .join(' ');
+            return `${icon} ${section.label}：${value}`;
+        })
+        .join('\n')
+        .trim();
 }
 
 function sectionValue(sections, label) {
