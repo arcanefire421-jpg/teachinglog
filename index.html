@@ -5864,6 +5864,18 @@ function mergedBookChapters(subjectKey, bookValue) {
             }
         });
     });
+    Object.entries(merged).forEach(([chapterName, sections]) => {
+        if (!sections || !Object.prototype.hasOwnProperty.call(sections, '課程內容')) return;
+        const originalTopics = Array.isArray(sections['課程內容']) ? sections['課程內容'] : [];
+        const topics = ['課程內容'];
+        originalTopics.forEach(topic => {
+            if (topic && topic !== chapterName && topic !== '課程內容' && !topics.includes(topic)) {
+                topics.push(topic);
+            }
+        });
+        delete sections['課程內容'];
+        sections[chapterName] = topics;
+    });
     return merged;
 }
 
