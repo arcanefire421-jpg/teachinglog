@@ -5534,6 +5534,24 @@ const JUNIOR_NATURAL_BOOKS = {
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
 // ================ 2. JS 變數與輔助函數 (v0.1) ================
+let teamsScopeBooksLoaded = false;
+window.teamsScopeBooksLoaded = false;
+
+async function loadTeamsScopeBooks() {
+    if (teamsScopeBooksLoaded) return;
+    try {
+        const response = await fetch('teams-scope-books.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        Object.entries(data.books || {}).forEach(([subjectKey, books]) => {
+            BOOKS[subjectKey] = Object.assign({}, BOOKS[subjectKey] || {}, books || {});
+        });
+        teamsScopeBooksLoaded = true;
+        window.teamsScopeBooksLoaded = true;
+    } catch (error) {
+        console.warn('TEAMS 節點資料載入失敗，改用內建資料。', error);
+    }
+}
 
 function safeJSONParse(key, defaultValue) {
     try {
@@ -6535,12 +6553,13 @@ function clearAll(showConfirm = false){
     syncProgressFromTemplate();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     setToday();
     renderCache();
     renderTemplates();
     renderSentences();
     renderArchives();
+    await loadTeamsScopeBooks();
     syncProgressFromTemplate();
 });
 </script>
