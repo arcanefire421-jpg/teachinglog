@@ -5539,17 +5539,24 @@ window.teamsScopeBooksLoaded = false;
 
 async function loadTeamsScopeBooks() {
     if (teamsScopeBooksLoaded) return;
+    await loadScopeBookFile('teams-scope-books.json', ['history', 'geography', 'civics']);
+    await loadScopeBookFile('disc-scope-books.json');
+    teamsScopeBooksLoaded = true;
+    window.teamsScopeBooksLoaded = true;
+}
+
+async function loadScopeBookFile(fileName, replaceSubjects = []) {
     try {
-        const response = await fetch('teams-scope-books.json', { cache: 'no-store' });
+        const response = await fetch(fileName, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         Object.entries(data.books || {}).forEach(([subjectKey, books]) => {
-            BOOKS[subjectKey] = Object.assign({}, BOOKS[subjectKey] || {}, books || {});
+            BOOKS[subjectKey] = replaceSubjects.includes(subjectKey)
+                ? (books || {})
+                : Object.assign({}, BOOKS[subjectKey] || {}, books || {});
         });
-        teamsScopeBooksLoaded = true;
-        window.teamsScopeBooksLoaded = true;
     } catch (error) {
-        console.warn('TEAMS 節點資料載入失敗，改用內建資料。', error);
+        console.warn(`${fileName} 載入失敗，改用已載入資料。`, error);
     }
 }
 
@@ -5778,7 +5785,7 @@ function usesDefaultHighScience(subjectKey, bookName) {
     const defaultSubjects = ['physics', 'chemistry', 'biology', 'earth'];
     return selectedLevelPrefix() === '高中'
         && defaultSubjects.includes(subjectKey)
-        && !/^(國小|國中|高中)/.test(bookName);
+        && (!/^(國小|國中|高中)/.test(bookName) || /\(115上\)/.test(bookName));
 }
 
 function displayBookName(bookName) {
