@@ -5627,6 +5627,31 @@ function deleteCachePath(encodedPath) {
     saveCache();
 }
 
+function readSelectedProgressItem() {
+    const subjectSelect = document.getElementById('subject');
+    const subjectKey = subjectSelect ? subjectSelect.value : '';
+    if (!subjectKey) return null;
+
+    const bookSelect = document.getElementById('bookSelect');
+    const chapterSelect = document.getElementById('chapterSelect');
+    const sectionSelect = document.getElementById('sectionSelect');
+    const selectedBookName = bookSelect ? bookSelect.value : '';
+    const manualBookName = document.getElementById('manualBookInput') ? document.getElementById('manualBookInput').value.trim() : '';
+    const bookName = manualBookName || selectedBookName;
+    const isManualBook = !!manualBookName;
+    const selectedChapterName = chapterSelect ? chapterSelect.value : '';
+    const manualChapterName = document.getElementById('manualChapterInput') ? document.getElementById('manualChapterInput').value.trim() : '';
+    const chapterName = manualChapterName || selectedChapterName;
+    const sectionName = sectionSelect ? sectionSelect.value : '';
+
+    const cleanBook = cleanSelectedOrManualBook(bookName, isManualBook);
+    const parts = [cleanBook, chapterName, sectionName].filter(Boolean);
+    if (parts.length === 0) return null;
+
+    const progressName = sectionName || chapterName || cleanBook;
+    return { path: parts.join(' / '), topic: progressName };
+}
+
 function addToCache() {
     let itemsToCache = [];
     const customItem = readCustomProgressItem();
@@ -5642,44 +5667,10 @@ function addToCache() {
             cb.checked = false; 
         });
     } else if (!customItem) {
-        const subjectSelect = document.getElementById('subject');
-        const subjectKey = subjectSelect ? subjectSelect.value : '';
-        const subjectName = subjectSelect ? subjectSelect.options[subjectSelect.selectedIndex].text : '';
-        const bookSelect = document.getElementById('bookSelect');
-        const chapterSelect = document.getElementById('chapterSelect');
-        const sectionSelect = document.getElementById('sectionSelect');
-
-        const selectedBookName = bookSelect ? bookSelect.value : '';
-        const manualBookName = document.getElementById('manualBookInput') ? document.getElementById('manualBookInput').value.trim() : '';
-        const bookName = manualBookName || selectedBookName;
-        const isManualBook = !!manualBookName;
-        const selectedChapterName = chapterSelect ? chapterSelect.value : '';
-        const manualChapterName = document.getElementById('manualChapterInput') ? document.getElementById('manualChapterInput').value.trim() : '';
-        const chapterName = manualChapterName || selectedChapterName;
-        const sectionName = sectionSelect ? sectionSelect.value : '';
-
-        let progressPath = '';
-        let progressName = '';
-
-        if (subjectKey) {
-            if (sectionName) {
-                const cleanBook = cleanSelectedOrManualBook(bookName, isManualBook);
-                progressPath = [cleanBook, chapterName, sectionName].filter(Boolean).join(' / ');
-                progressName = sectionName;
-            } else if (chapterName) {
-                const cleanBook = cleanSelectedOrManualBook(bookName, isManualBook);
-                progressPath = [cleanBook, chapterName].filter(Boolean).join(' / ');
-                progressName = chapterName;
-            } else if (bookName) {
-                progressPath = `${cleanSelectedOrManualBook(bookName, isManualBook)}`;
-                progressName = progressPath;
-            }
-        }
-        if (progressPath && progressName) {
-            itemsToCache.push({ path: progressPath, topic: progressName });
-        }
+        const selectedItem = readSelectedProgressItem();
+        if (selectedItem) itemsToCache.push(selectedItem);
         if (itemsToCache.length === 0) {
-            alert("請先選擇進度");
+            alert("請先選擇冊別、章節或小節");
             return;
         }
     }
@@ -6278,35 +6269,8 @@ function generate() {
     if (progressCache.length > 0) {
         progressToOutput = [...progressCache];
     } else {
-        const subjectSelect = document.getElementById('subject');
-        const subjectKey = subjectSelect ? subjectSelect.value : '';
-        const subjectName = subjectSelect ? subjectSelect.options[subjectSelect.selectedIndex].text : '';
-        const selectedBookName = document.getElementById('bookSelect') ? document.getElementById('bookSelect').value : '';
-        const manualBookName = document.getElementById('manualBookInput') ? document.getElementById('manualBookInput').value.trim() : '';
-        const bookName = manualBookName || selectedBookName;
-        const isManualBook = !!manualBookName;
-        const selectedChapterName = document.getElementById('chapterSelect') ? document.getElementById('chapterSelect').value : '';
-        const manualChapterName = document.getElementById('manualChapterInput') ? document.getElementById('manualChapterInput').value.trim() : '';
-        const chapterName = manualChapterName || selectedChapterName;
-        const sectionName = document.getElementById('sectionSelect') ? document.getElementById('sectionSelect').value : '';
-        
-        let progressPath = '';
-        let progressName = '';
-        
-        const cleanBookName = cleanSelectedOrManualBook(bookName, isManualBook);
-        if (sectionName) {
-            progressPath = [cleanBookName, chapterName, sectionName].filter(Boolean).join(' / ');
-            progressName = sectionName;
-        } else if (chapterName) {
-            progressPath = [cleanBookName, chapterName].filter(Boolean).join(' / ');
-            progressName = chapterName;
-        } else if (bookName) {
-            progressPath = cleanBookName;
-            progressName = cleanBookName;
-        }
-        if (progressPath && progressName) {
-             progressToOutput.push({ path: progressPath, topic: progressName });
-        }
+        const selectedItem = readSelectedProgressItem();
+        if (selectedItem) progressToOutput.push(selectedItem);
     }
 
     const groupedProgress = new Map();
