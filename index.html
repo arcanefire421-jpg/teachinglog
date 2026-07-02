@@ -5543,6 +5543,7 @@ async function loadTeamsScopeBooks() {
     await loadScopeBookFile('disc-scope-books.json');
     await loadScopeBookFile('elementary-disc-scope-books.json');
     await loadScopeBookFile('junior-scope-books.json');
+    await loadScopeBookFile('high-scope-books.json');
     teamsScopeBooksLoaded = true;
     window.teamsScopeBooksLoaded = true;
 }
@@ -5787,7 +5788,7 @@ function usesDefaultHighScience(subjectKey, bookName) {
     const defaultSubjects = ['physics', 'chemistry', 'biology', 'earth'];
     return selectedLevelPrefix() === '高中'
         && defaultSubjects.includes(subjectKey)
-        && (!/^(國小|國中|高中)/.test(bookName) || /\(115上\)/.test(bookName));
+        && (!/^(國小|國中|高中)/.test(bookName) || /\((114上|115上)\)/.test(bookName));
 }
 
 function displayBookName(bookName) {
