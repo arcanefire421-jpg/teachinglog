@@ -5958,7 +5958,11 @@ function renderSectionControls(sections = []) {
 
 function isNoiseProgressNode(name) {
     const text = String(name || '').trim();
-    return /^(目次|目錄|封面|版權頁|書名頁|空白頁|Contents)$/i.test(text);
+    if (/^(目次|目錄|封面|版權頁|書名頁|空白頁|Contents)$/i.test(text)) return true;
+    if (/^(習作解答|解答|詳解|解析|教師用|學生用|教用|學用)$/i.test(text)) return true;
+    if (/^(講義|學習講義|會考講義|教學式講義|良師講義|互動式講義PPT|教材講義|備課用書)$/i.test(text)) return true;
+    if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?(講義|學習講義|會考講義|教學式講義|良師講義|互動式教學講義|教材講義|備課用書)(教用|學用)?$/i.test(text)) return true;
+    return /^(?:[A-Z]{0,3}\d+[-_]\d+|p\d+(?:[-_]\d+)?|P\d+(?:[-_]\d+)?|圖\d+(?:[-_]\d+)?|C\d+章首圖)$/i.test(text);
 }
 
 function cleanProgressNodes(nodes = []) {
@@ -6039,7 +6043,7 @@ function loadTopics() {
     if (!sectionName) return;
 
     const bookChapters = mergedBookChapters(subjectKey, bookName);
-    const topics = bookChapters[chapterName]?.[sectionName] || [];
+    const topics = cleanProgressNodes(bookChapters[chapterName]?.[sectionName] || []);
     let html = '<label>✅ 今日進度 (可複選)</label>';
     html += '<div class="topic-panel" style="max-height: 200px; overflow-y: auto;">';
     topics.forEach((topic, index) => {
@@ -6066,7 +6070,7 @@ function buildProgressIndex() {
             cleanProgressNodes(Object.keys(chapters)).forEach(chapterName => {
                 const sections = chapters[chapterName] || {};
                 cleanProgressNodes(Object.keys(sections)).forEach(sectionName => {
-                    const topics = sections[sectionName] || [];
+                    const topics = cleanProgressNodes(sections[sectionName] || []);
                     topics.forEach(topic => {
                         const path = `${bookName} / ${chapterName} / ${sectionName}`;
                         rows.push({
