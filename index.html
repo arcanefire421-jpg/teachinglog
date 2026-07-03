@@ -53,6 +53,14 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .archive-meta{font-size:.86rem;color:#64748b;}
 .archive-actions{display:flex;gap:5px;flex-wrap:wrap;}
 .archive-actions button{font-size:.9rem;padding:6px 8px;margin:0;box-shadow:none;}
+.archive-tools{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin-top:7px;}
+.archive-tools input{margin-top:0;}
+.progress-picker{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:start;}
+.progress-column{background:#f8fbff;border:1px solid #dbeafe;border-radius:10px;padding:8px;}
+.progress-column label:first-child{margin-top:0;}
+.progress-column input,.progress-column select{margin-top:3px;}
+.progress-column .manual-label{font-size:.86rem;color:#64748b;margin-top:7px;}
+.topic-panel{margin-top:9px;border:1px solid #e5e7eb;padding:8px;border-radius:10px;background:#ffffff;}
 .output{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;border-radius:12px;
   line-height:1.55;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid #dbe3ef;padding:18px 16px;margin-top:12px;
   font-size:1rem;letter-spacing:0;box-shadow:0 8px 22px rgba(20,35,70,0.08);}
@@ -102,6 +110,8 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
   .output{font-size:1rem;padding:14px 12px;}
   .output-item{grid-template-columns:1fr;gap:4px;}
   .output.compact .output-item{grid-template-columns:26px 64px 1fr;}
+  .progress-picker{grid-template-columns:1fr;}
+  .archive-tools{grid-template-columns:1fr;}
   input,select,textarea{font-size:1.01rem;}
 }
 .select-group { display: flex; gap: 5px; }
@@ -301,6 +311,10 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
       <option value="subject">依科目分類</option>
     </select>
     <button class="danger" onclick="clearArchives(true)">清空存檔</button>
+  </div>
+  <div class="archive-tools">
+    <input id="archiveSearch" placeholder="搜尋日期、班級、科目或內容" oninput="renderArchives()">
+    <button type="button" class="link-button" onclick="clearArchiveSearch()">清除搜尋</button>
   </div>
   <div id="archiveList" class="archive-list">目前沒有存檔。</div>
 </div>
@@ -5911,29 +5925,44 @@ function cleanSelectedOrManualBook(bookName, isManual) {
 }
 
 function resetLowerProgressAreas() {
-    ['sectionSelectArea', 'topicArea'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = '';
-    });
+    const sectionArea = document.getElementById('sectionSelectArea');
+    if (sectionArea) sectionArea.innerHTML = renderSectionControls();
+    const topicArea = document.getElementById('topicArea');
+    if (topicArea) topicArea.innerHTML = '';
 }
 
 function renderChapterControls(chapters = []) {
     const options = chapters.length
         ? chapters.map(c => `<option value="${htmlEscape(c)}">${htmlEscape(c)}</option>`).join('')
         : '';
-    return `<div class="split-row">
-              <div>
-                <label>📑 章節</label>
-                <select id="chapterSelect" onchange="loadSections()" ${chapters.length ? '' : 'disabled'}>
-                  <option value="">--選章節--</option>
-                  ${options}
-                </select>
-              </div>
-              <div>
-                <label>手動章節</label>
-                <input id="manualChapterInput" placeholder="例：第5單元_多位數的乘除">
-              </div>
-            </div>`;
+    return `<label>📑 章節</label>
+            <select id="chapterSelect" onchange="loadSections()" ${chapters.length ? '' : 'disabled'}>
+              <option value="">--選章節--</option>
+              ${options}
+            </select>
+            <label class="manual-label">手動章節</label>
+            <input id="manualChapterInput" placeholder="例：第5單元_多位數的乘除">`;
+}
+
+function renderSectionControls(sections = []) {
+    const cleanSections = cleanProgressNodes(sections);
+    const options = cleanSections.length
+        ? cleanSections.map(s => `<option value="${htmlEscape(s)}">${htmlEscape(s)}</option>`).join('')
+        : '';
+    return `<label>📝 小節</label>
+            <select id="sectionSelect" onchange="loadTopics()" ${cleanSections.length ? '' : 'disabled'}>
+              <option value="">--選小節--</option>
+              ${options}
+            </select>`;
+}
+
+function isNoiseProgressNode(name) {
+    const text = String(name || '').trim();
+    return /^(目次|目錄|封面|版權頁|書名頁|空白頁|Contents)$/i.test(text);
+}
+
+function cleanProgressNodes(nodes = []) {
+    return nodes.filter(node => !isNoiseProgressNode(node));
 }
 
 function loadBooks() {
@@ -5951,21 +5980,19 @@ function loadBooks() {
         bookArea.innerHTML = '<div class="cache-item">此學制目前沒有這個科目的進度資料。</div>';
         return;
     }
-    let html = `<div class="split-row">
-                  <div>
+    let html = `<div class="progress-picker">
+                  <div class="progress-column">
                     <label>📖 冊別</label>
                     <select id="bookSelect" onchange="loadChapters()">
                       <option value="">--選冊別--</option>
                       ${bookGroups.map(group => `<option value="${htmlEscape(group.names.join('||'))}">${htmlEscape(group.display)}</option>`).join('')}
                     </select>
-                  </div>
-                  <div>
-                    <label>手動冊別</label>
+                    <label class="manual-label">手動冊別</label>
                     <input id="manualBookInput" placeholder="例：第九冊">
                   </div>
+                  <div id="chapterSelectArea" class="progress-column">${renderChapterControls()}</div>
+                  <div id="sectionSelectArea" class="progress-column">${renderSectionControls()}</div>
                 </div>`;
-    html += `<div id="chapterSelectArea" style="margin-top:10px;">${renderChapterControls()}</div>`;
-    html += '<div id="sectionSelectArea" style="margin-top:10px;"></div>';
     html += '<div id="topicArea" style="margin-top:10px;"></div>';
     bookArea.innerHTML = html;
 }
@@ -5980,7 +6007,7 @@ function loadChapters() {
     if (!bookName) return;
 
     const bookChapters = mergedBookChapters(subjectKey, bookName);
-    const chapters = Object.keys(bookChapters);
+    const chapters = cleanProgressNodes(Object.keys(bookChapters));
     chapterArea.innerHTML = renderChapterControls(chapters);
 }
 
@@ -5998,12 +6025,7 @@ function loadSections() {
 
     const bookChapters = mergedBookChapters(subjectKey, bookName);
     const sections = Object.keys(bookChapters[chapterName] || {});
-    let html = '<label>📝 小節</label>';
-    html += `<select id="sectionSelect" onchange="loadTopics()">
-                <option value="">--選小節--</option>
-                ${sections.map(s => `<option value="${htmlEscape(s)}">${htmlEscape(s)}</option>`).join('')}
-             </select>`;
-    sectionArea.innerHTML = html;
+    sectionArea.innerHTML = renderSectionControls(sections);
 }
 
 function loadTopics() {
@@ -6019,7 +6041,7 @@ function loadTopics() {
     const bookChapters = mergedBookChapters(subjectKey, bookName);
     const topics = bookChapters[chapterName]?.[sectionName] || [];
     let html = '<label>✅ 今日進度 (可複選)</label>';
-    html += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 8px; border-radius: 8px;">';
+    html += '<div class="topic-panel" style="max-height: 200px; overflow-y: auto;">';
     topics.forEach((topic, index) => {
         const progressPath = `${displayBookNameForSubject(bookName.split('||')[0], subjectKey)} / ${chapterName} / ${sectionName}`;
         const uniqueId = `topic-${sectionName.replace(/\s/g, '_')}-${index}`;
@@ -6041,9 +6063,9 @@ function buildProgressIndex() {
         getBookGroups(subjectKey).forEach(group => {
             const bookName = group.display;
             const chapters = mergedBookChapters(subjectKey, group.names.join('||'));
-            Object.keys(chapters).forEach(chapterName => {
+            cleanProgressNodes(Object.keys(chapters)).forEach(chapterName => {
                 const sections = chapters[chapterName] || {};
-                Object.keys(sections).forEach(sectionName => {
+                cleanProgressNodes(Object.keys(sections)).forEach(sectionName => {
                     const topics = sections[sectionName] || [];
                     topics.forEach(topic => {
                         const path = `${bookName} / ${chapterName} / ${sectionName}`;
@@ -6381,18 +6403,31 @@ function formatCompactCopyText(sections) {
         '小考': '🧾',
         '作業': '🏠',
     };
-    return sections
+    const byLabel = new Map(sections.map(section => [section.label, section]));
+    const head = ['班級', '日期']
+        .map(label => {
+            const section = byLabel.get(label);
+            if (!section || !section.value) return '';
+            return `${icons[label]} ${label}：${compactTextValue(section.value)}`;
+        })
+        .filter(Boolean)
+        .join('　');
+    const body = sections
+        .filter(section => !['班級', '日期'].includes(section.label))
         .map(section => {
             const icon = icons[section.label] || '✨';
-            const value = String(section.value || '')
-                .split('\n')
-                .map(line => line.trim())
-                .filter(Boolean)
-                .join(' ');
-            return `${icon} ${section.label}：${value}`;
+            return `${icon} ${section.label}：${compactTextValue(section.value)}`;
         })
-        .join('\n')
-        .trim();
+        .filter(Boolean);
+    return [head, ...body].filter(Boolean).join('\n').trim();
+}
+
+function compactTextValue(value) {
+    return String(value || '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .join(' ');
 }
 
 function sectionValue(sections, label) {
@@ -6402,6 +6437,13 @@ function sectionValue(sections, label) {
 function subjectFromClassName(className) {
     const subjects = ['國文', '國語', '英文', '英語', '數學', '社會', '自然', '物理', '化學', '生物', '地科', '歷史', '地理', '公民'];
     return subjects.find(subject => className.includes(subject)) || '未分類';
+}
+
+function subjectFromSections(sections, fallbackClassName = '') {
+    const classSubject = subjectFromClassName(fallbackClassName);
+    if (classSubject !== '未分類') return classSubject;
+    const progressText = sectionValue(sections || [], '今日進度');
+    return subjectFromClassName(progressText);
 }
 
 function archiveGroupKey(item, groupBy) {
@@ -6420,11 +6462,30 @@ function saveCurrentArchive() {
         ...currentArchivePayload,
         id: `${Date.now()}`,
         className,
-        subject: subjectFromClassName(className),
+        subject: subjectFromSections(currentArchivePayload.sections, className),
         outputStyle: document.getElementById('outputStyle')?.value || currentArchivePayload.outputStyle || 'original',
     };
     archives.unshift(item);
     saveArchives();
+}
+
+function archiveMatchesSearch(item, keyword) {
+    if (!keyword) return true;
+    const haystack = [
+        item.title,
+        item.date,
+        item.className,
+        item.subject,
+        item.plainText,
+        archiveCopyText(item),
+    ].join(' ').toLowerCase();
+    return haystack.includes(keyword.toLowerCase());
+}
+
+function clearArchiveSearch() {
+    const input = document.getElementById('archiveSearch');
+    if (input) input.value = '';
+    renderArchives();
 }
 
 function renderArchives() {
@@ -6435,8 +6496,14 @@ function renderArchives() {
         return;
     }
     const groupBy = document.getElementById('archiveGroupBy')?.value || 'date';
+    const keyword = document.getElementById('archiveSearch')?.value.trim() || '';
+    const visibleArchives = archives.filter(item => archiveMatchesSearch(item, keyword));
+    if (!visibleArchives.length) {
+        list.innerHTML = '沒有符合搜尋的存檔。';
+        return;
+    }
     const groups = new Map();
-    archives.forEach(item => {
+    visibleArchives.forEach(item => {
         const key = archiveGroupKey(item, groupBy);
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(item);
