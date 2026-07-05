@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 教學日誌生成器 (v0.4)</title>
+<title>📘 教學日誌生成器 (v0.5)</title>
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -129,7 +129,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 </style>
 </head>
 <body>
-<h1>📘 教學日誌生成器 (v0.4)</h1>
+<h1>📘 教學日誌生成器 (v0.5)</h1>
 
 <div class="card">
   <label>🏫 班級模板</label>
@@ -5548,7 +5548,7 @@ const JUNIOR_NATURAL_BOOKS = {
 };
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
-// ================ 2. JS 變數與輔助函數 (v0.4) ================
+// ================ 2. JS 變數與輔助函數 (v0.5) ================
 let teamsScopeBooksLoaded = false;
 window.teamsScopeBooksLoaded = false;
 
@@ -5800,7 +5800,7 @@ function usesDefaultHighScience(subjectKey, bookName) {
 function displayBookName(bookName) {
     return String(bookName || '')
         .replace(/^(國小|國中|高中)/, '')
-        .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合|明霖|金安|華逵|奇鼎|高升鑫|建弘)版/, '')
+        .replace(/^(三民|全華|南一|泰宇|TY|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合|明霖|金安|華逵|奇鼎|高升鑫|建弘)版/, '')
         .replace(/（\d+學年）|\(\d+學年\)|\(\d{3}[上下]\)|（\d{3}[上下]）/g, '')
         .replace(/第(\d+)冊/g, (_, num) => `第${numberToChinese(Number(num))}冊`)
         .trim();
@@ -5808,6 +5808,7 @@ function displayBookName(bookName) {
 
 function displayBookNameForSubject(bookName, subjectKey) {
     const displayName = displayBookName(bookName);
+    if (subjectKey === 'math' && selectedLevelPrefix() === '高中') return normalizeHighMathBookName(displayName);
     if (subjectKey !== 'science' || selectedLevelPrefix() !== '國中') return displayName;
     const juniorNaturalMap = {
         '第一冊': '第一冊(生物)',
@@ -5818,6 +5819,28 @@ function displayBookNameForSubject(bookName, subjectKey) {
         '第六冊': '第六冊(理化)',
     };
     return juniorNaturalMap[displayName] || displayName;
+}
+
+function normalizeHighMathBookName(displayName) {
+    let name = String(displayName || '').trim();
+    name = name
+        .replace(/^數學([一二三四五六])$/, (_, num) => `第${num}冊`)
+        .replace(/^(\d)([AB])$/i, (_, num, suffix) => `第${numberToChinese(Number(num))}冊${suffix.toUpperCase()}`)
+        .replace(/^第([一二三四五六])冊([AB])$/i, (_, num, suffix) => `第${num}冊${suffix.toUpperCase()}`);
+    const electiveMap = [
+        [/^甲上$/i, '數甲上'],
+        [/^甲下$/i, '數甲下'],
+        [/^乙上$/i, '數乙上'],
+        [/^乙下$/i, '數乙下'],
+        [/^(?:選修)?數學?甲[（(]?上[）)]?$/i, '數甲上'],
+        [/^(?:選修)?數學?甲[（(]?下[）)]?$/i, '數甲下'],
+        [/^(?:選修)?數學?乙[（(]?上[）)]?$/i, '數乙上'],
+        [/^(?:選修)?數學?乙[（(]?下[）)]?$/i, '數乙下'],
+    ];
+    for (const [pattern, label] of electiveMap) {
+        if (pattern.test(name)) return label;
+    }
+    return name;
 }
 
 function numberToChinese(num) {
@@ -5846,6 +5869,19 @@ function chineseNumberValue(text) {
 
 function bookSortValue(displayName) {
     const name = displayName || '';
+    const highMathOrder = {
+        '第一冊': 1,
+        '第二冊': 2,
+        '第三冊A': 3,
+        '第三冊B': 4,
+        '第四冊A': 5,
+        '第四冊B': 6,
+        '數甲上': 7,
+        '數甲下': 8,
+        '數乙上': 9,
+        '數乙下': 10,
+    };
+    if (Object.prototype.hasOwnProperty.call(highMathOrder, name)) return highMathOrder[name];
     let match = name.match(/^生物([一二三四五六七八九十\d]+)冊/);
     if (match) return 10 + chineseNumberValue(match[1]);
     match = name.match(/^理化([一二三四五六七八九十\d]+)冊/);
@@ -5872,6 +5908,7 @@ function getBookGroups(subjectKey) {
     }
     bookNames.forEach(bookName => {
         const display = displayBookNameForSubject(bookName, subjectKey);
+        if (isNoiseBookGroup(display, subjectKey)) return;
         if (!groups.has(display)) groups.set(display, []);
         groups.get(display).push(bookName);
     });
@@ -5881,6 +5918,15 @@ function getBookGroups(subjectKey) {
             const diff = bookSortValue(a.display) - bookSortValue(b.display);
             return diff || a.display.localeCompare(b.display, 'zh-Hant');
     });
+}
+
+function isNoiseBookGroup(displayName, subjectKey) {
+    const name = String(displayName || '').trim();
+    if (subjectKey === 'math' && selectedLevelPrefix() === '高中') {
+        if (/^(第三冊|第四冊)$/.test(name)) return true;
+        return /(講義|教材|EZ100|教用|學用|PPT|備課|課本|習作|雙向溝通|i學習)/i.test(name);
+    }
+    return false;
 }
 
 function bookHasVisibleChapters(subjectKey, bookName) {
