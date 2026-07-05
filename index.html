@@ -166,6 +166,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
     <select id="classTypeSelect" onchange="syncProgressFromTemplate()">
       <option>進度</option>
       <option>輔導</option>
+      <option>家教</option>
       <option>總複習</option>
     </select>
   </div>
@@ -5895,7 +5896,24 @@ function mergedBookChapters(subjectKey, bookValue) {
             }
         });
     });
-    Object.entries(merged).forEach(([chapterName, sections]) => {
+    return normalizeChapterTree(merged, bookNames[0] || '');
+}
+
+function normalizeChapterTree(chapters, bookName = '') {
+    const normalized = {};
+    Object.entries(chapters || {}).forEach(([chapterName, sections]) => {
+        const cleanChapter = normalizeChapterName(chapterName, sections, bookName);
+        if (!cleanChapter) return;
+        if (shouldPromoteChapterSections(chapterName, bookName)) {
+            Object.entries(sections || {}).forEach(([sectionName, topics]) => {
+                if (isNoiseProgressNode(sectionName)) return;
+                addNormalizedChapter(normalized, sectionName, { [sectionName]: topics });
+            });
+            return;
+        }
+        addNormalizedChapter(normalized, cleanChapter, sections);
+    });
+    Object.entries(normalized).forEach(([chapterName, sections]) => {
         if (!sections || !Object.prototype.hasOwnProperty.call(sections, '課程內容')) return;
         const originalTopics = Array.isArray(sections['課程內容']) ? sections['課程內容'] : [];
         const topics = ['課程內容'];
@@ -5907,7 +5925,46 @@ function mergedBookChapters(subjectKey, bookValue) {
         delete sections['課程內容'];
         sections[chapterName] = topics;
     });
-    return merged;
+    return normalized;
+}
+
+function addNormalizedChapter(target, chapterName, sections) {
+    if (!target[chapterName]) {
+        target[chapterName] = sections;
+    } else {
+        target[chapterName] = Object.assign({}, target[chapterName], sections);
+    }
+}
+
+function shouldPromoteChapterSections(chapterName, bookName) {
+    const volume = chapterName.match(/^(首冊|第[一二三四五六七八九十]+冊|第\d+冊|[一二三四五六七八九十]+冊)$/);
+    return !!volume && displayBookName(bookName).includes(chapterName) && !/總複習/.test(bookName);
+}
+
+function normalizeChapterName(chapterName, sections = {}, bookName = '') {
+    let name = String(chapterName || '').trim();
+    if (!name) return '';
+    name = name.replace(/^(教用|學用)\s+/, '').replace(/教材$/, '');
+    if (/^L\d{1,2}(?:\s+(.+))?$/i.test(name)) {
+        return name.replace(/^L0?(\d+)(?:\s+(.+))?$/i, (_, num, title) => `第${numberToChinese(Number(num))}課${title ? ` ${title.trim()}` : ''}`);
+    }
+    if (/^(第一冊|第二冊|第三冊|第四冊|第五冊|第六冊|第七冊|第八冊|第九冊|第十冊|首冊|第[一二三四五六七八九十]+冊)$/.test(name)) {
+        if (/總複習/.test(bookName)) return `${name}總複習`;
+        return name;
+    }
+    if (/^第[一二三四五六七八九十\d]+章$/.test(name)) {
+        const hint = chapterHintFromSections(sections);
+        return hint ? `${name} ${hint}` : name;
+    }
+    return name;
+}
+
+function chapterHintFromSections(sections = {}) {
+    const labels = Object.keys(sections)
+        .filter(section => !isNoiseProgressNode(section))
+        .map(section => String(section).replace(/^單元\d+\s*/, '').trim())
+        .filter(Boolean);
+    return labels.slice(0, 2).join('、');
 }
 
 function displayProgressPath(path) {
