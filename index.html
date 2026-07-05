@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 教學日誌生成器 (v0.3)</title>
+<title>📘 教學日誌生成器 (v0.4)</title>
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -129,7 +129,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 </style>
 </head>
 <body>
-<h1>📘 教學日誌生成器 (v0.3)</h1>
+<h1>📘 教學日誌生成器 (v0.4)</h1>
 
 <div class="card">
   <label>🏫 班級模板</label>
@@ -5548,7 +5548,7 @@ const JUNIOR_NATURAL_BOOKS = {
 };
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
-// ================ 2. JS 變數與輔助函數 (v0.3) ================
+// ================ 2. JS 變數與輔助函數 (v0.4) ================
 let teamsScopeBooksLoaded = false;
 window.teamsScopeBooksLoaded = false;
 
@@ -5794,7 +5794,7 @@ function usesDefaultHighScience(subjectKey, bookName) {
     const defaultSubjects = ['physics', 'chemistry', 'biology', 'earth'];
     return selectedLevelPrefix() === '高中'
         && defaultSubjects.includes(subjectKey)
-        && (!/^(國小|國中|高中)/.test(bookName) || /\((114上|115上)\)/.test(bookName));
+        && !/^(國小|國中|高中)/.test(bookName);
 }
 
 function displayBookName(bookName) {
@@ -5866,7 +5866,7 @@ function bookSortValue(displayName) {
 
 function getBookGroups(subjectKey) {
     const groups = new Map();
-    let bookNames = Object.keys(BOOKS[subjectKey] || {}).filter(bookMatchesLevel);
+    let bookNames = Object.keys(BOOKS[subjectKey] || {}).filter(bookMatchesLevel).filter(bookHasVisibleChapters.bind(null, subjectKey));
     if (['physics', 'chemistry', 'biology', 'earth'].includes(subjectKey) && selectedLevelPrefix() === '高中') {
         bookNames = bookNames.filter(bookName => usesDefaultHighScience(subjectKey, bookName));
     }
@@ -5880,7 +5880,12 @@ function getBookGroups(subjectKey) {
         .sort((a, b) => {
             const diff = bookSortValue(a.display) - bookSortValue(b.display);
             return diff || a.display.localeCompare(b.display, 'zh-Hant');
-        });
+    });
+}
+
+function bookHasVisibleChapters(subjectKey, bookName) {
+    const chapters = BOOKS[subjectKey]?.[bookName] || {};
+    return Object.keys(chapters).some(chapterName => !isNoiseProgressNode(chapterName) && !isNoiseProgressNode(normalizeChapterName(chapterName, chapters[chapterName], bookName)));
 }
 
 function mergedBookChapters(subjectKey, bookValue) {
@@ -5902,6 +5907,7 @@ function mergedBookChapters(subjectKey, bookValue) {
 function normalizeChapterTree(chapters, bookName = '') {
     const normalized = {};
     Object.entries(chapters || {}).forEach(([chapterName, sections]) => {
+        if (isNoiseProgressNode(chapterName)) return;
         const cleanChapter = normalizeChapterName(chapterName, sections, bookName);
         if (!cleanChapter) return;
         if (shouldPromoteChapterSections(chapterName, bookName)) {
@@ -6016,9 +6022,12 @@ function renderSectionControls(sections = []) {
 function isNoiseProgressNode(name) {
     const text = String(name || '').trim();
     if (/^(目次|目錄|封面|版權頁|書名頁|空白頁|Contents)$/i.test(text)) return true;
-    if (/^(習作解答|解答|詳解|解析|教師用|學生用|教用|學用)$/i.test(text)) return true;
-    if (/^(講義|學習講義|會考講義|教學式講義|良師講義|互動式講義PPT|教材講義|備課用書|課堂筆記|自修|雙向溝通)$/i.test(text)) return true;
+    if (/^(教用|學用)\s+/.test(text)) return true;
+    if (/^課本編輯大意\+目錄$/.test(text)) return true;
+    if (/^(課程內容|習作解答|解答|詳解|解析|教師用|學生用|教用|學用)$/i.test(text)) return true;
+    if (/^(課本|習作|教師專用課本|學生課本|課本圖檔|圖檔|圖片|電子書|影音|PPT|教學PPT|互動PPT|主題PPT|重點彙整PPT|講義|學習講義|會考講義|教學式講義|良師講義|互動式講義PPT|教材講義|備課用書|備課資源|課堂筆記|自修|雙向溝通|習解|貼紙|附件|i學習)$/i.test(text)) return true;
     if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?雙向溝通$/i.test(text)) return true;
+    if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?i學習(教用|學用)?$/i.test(text)) return true;
     if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?(講義|學習講義|會考講義|教學式講義|良師講義|互動式教學講義|教材講義|備課用書)(教用|學用)?$/i.test(text)) return true;
     return /^(?:[A-Z]{0,3}\d+[-_]\d+|p\d+(?:[-_]\d+)?|P\d+(?:[-_]\d+)?|圖\d+(?:[-_]\d+)?|C\d+章首圖)$/i.test(text);
 }
