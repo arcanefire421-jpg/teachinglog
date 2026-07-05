@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 教學日誌生成器 (v0.2)</title>
+<title>📘 教學日誌生成器 (v0.3)</title>
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -129,7 +129,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 </style>
 </head>
 <body>
-<h1>📘 教學日誌生成器 (v0.2)</h1>
+<h1>📘 教學日誌生成器 (v0.3)</h1>
 
 <div class="card">
   <label>🏫 班級模板</label>
@@ -5548,7 +5548,7 @@ const JUNIOR_NATURAL_BOOKS = {
 };
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
-// ================ 2. JS 變數與輔助函數 (v0.2) ================
+// ================ 2. JS 變數與輔助函數 (v0.3) ================
 let teamsScopeBooksLoaded = false;
 window.teamsScopeBooksLoaded = false;
 
@@ -5800,8 +5800,8 @@ function usesDefaultHighScience(subjectKey, bookName) {
 function displayBookName(bookName) {
     return String(bookName || '')
         .replace(/^(國小|國中|高中)/, '')
-        .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合)版/, '')
-        .replace(/（\d+學年）|\(\d+學年\)/g, '')
+        .replace(/^(三民|全華|南一|泰宇|康軒|康熹|翰林|龍騰|適南|適康|通用|綜合|明霖|金安|華逵|奇鼎|高升鑫|建弘)版/, '')
+        .replace(/（\d+學年）|\(\d+學年\)|\(\d{3}[上下]\)|（\d{3}[上下]）/g, '')
         .replace(/第(\d+)冊/g, (_, num) => `第${numberToChinese(Number(num))}冊`)
         .trim();
 }
@@ -6017,7 +6017,8 @@ function isNoiseProgressNode(name) {
     const text = String(name || '').trim();
     if (/^(目次|目錄|封面|版權頁|書名頁|空白頁|Contents)$/i.test(text)) return true;
     if (/^(習作解答|解答|詳解|解析|教師用|學生用|教用|學用)$/i.test(text)) return true;
-    if (/^(講義|學習講義|會考講義|教學式講義|良師講義|互動式講義PPT|教材講義|備課用書)$/i.test(text)) return true;
+    if (/^(講義|學習講義|會考講義|教學式講義|良師講義|互動式講義PPT|教材講義|備課用書|課堂筆記|自修|雙向溝通)$/i.test(text)) return true;
+    if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?雙向溝通$/i.test(text)) return true;
     if (/^(南一|康軒|翰林|龍騰|三民|全華|泰宇|華逵|金安|奇鼎|明霖|高升鑫|建弘)?(講義|學習講義|會考講義|教學式講義|良師講義|互動式教學講義|教材講義|備課用書)(教用|學用)?$/i.test(text)) return true;
     return /^(?:[A-Z]{0,3}\d+[-_]\d+|p\d+(?:[-_]\d+)?|P\d+(?:[-_]\d+)?|圖\d+(?:[-_]\d+)?|C\d+章首圖)$/i.test(text);
 }
