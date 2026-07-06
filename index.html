@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 教學日誌生成器 (v0.6)</title>
+<title>📘 教學日誌生成器 (v0.7)</title>
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -61,7 +61,13 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .quality-panel{display:grid;gap:8px;margin-top:8px;}
 .quality-item{border:1px solid #e5e7eb;background:#ffffff;border-radius:10px;padding:8px;}
 .quality-tag{display:inline-block;border-radius:999px;padding:2px 7px;margin-right:5px;font-size:.82rem;font-weight:800;background:#fee2e2;color:#991b1b;}
+.quality-tag.merge{background:#dbeafe;color:#1e40af;}
+.quality-tag.hide{background:#fef3c7;color:#92400e;}
+.quality-tag.review{background:#fce7f3;color:#9d174d;}
 .quality-item.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;font-weight:800;}
+.quality-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;}
+.quality-stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;text-align:center;}
+.quality-stat strong{display:block;font-size:1.25rem;color:#1d4ed8;}
 .progress-picker{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:start;}
 .progress-column{background:#f8fbff;border:1px solid #dbeafe;border-radius:10px;padding:8px;}
 .progress-column label:first-child{margin-top:0;}
@@ -147,7 +153,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 </style>
 </head>
 <body>
-<h1>📘 教學日誌生成器 (v0.6)</h1>
+<h1>📘 教學日誌生成器 (v0.7)</h1>
 
 <div class="card">
   <label>🏫 班級模板</label>
@@ -362,6 +368,8 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
   <label>🔍 資料檢查</label>
   <div class="quick-row">
     <button type="button" onclick="runQualityCheck()">檢查目前科目</button>
+    <button type="button" onclick="runAllQualityCheck()">全科掃描</button>
+    <button type="button" onclick="runMergeHiddenReport()">合併/隱藏摘要</button>
     <button type="button" class="link-button" onclick="clearQualityCheck()">清除</button>
   </div>
   <div id="qualityCheckResult" class="quality-panel"></div>
@@ -5595,7 +5603,7 @@ const JUNIOR_NATURAL_BOOKS = {
 };
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
-// ================ 2. JS 變數與輔助函數 (v0.6) ================
+// ================ 2. JS 變數與輔助函數 (v0.7) ================
 let teamsScopeBooksLoaded = false;
 window.teamsScopeBooksLoaded = false;
 
@@ -6299,6 +6307,56 @@ function qualitySuspicionReason(text, kind) {
     return '';
 }
 
+function qualitySubjectLabel(subjectKey) {
+    const option = document.querySelector(`#subject option[value="${subjectKey}"]`);
+    return option ? option.textContent.trim() : subjectKey;
+}
+
+function collectQualityIssuesForSubject(subjectKey) {
+    const issues = [];
+    getBookGroups(subjectKey).forEach(group => {
+        const bookReason = qualitySuspicionReason(group.display, 'book');
+        if (bookReason) issues.push({ type: '冊別', path: `${qualitySubjectLabel(subjectKey)} / ${group.display}`, reason: bookReason });
+        const chapters = mergedBookChapters(subjectKey, group.names.join('||'));
+        Object.entries(chapters).forEach(([chapterName, sections]) => {
+            if (isNoiseProgressNode(chapterName)) return;
+            const chapterReason = qualitySuspicionReason(chapterName, 'chapter');
+            if (chapterReason) issues.push({ type: '章節', path: `${qualitySubjectLabel(subjectKey)} / ${group.display} / ${chapterName}`, reason: chapterReason });
+            Object.keys(sections || {}).forEach(sectionName => {
+                if (isNoiseProgressNode(sectionName)) return;
+                const sectionReason = qualitySuspicionReason(sectionName, 'section');
+                if (sectionReason) issues.push({ type: '小節', path: `${qualitySubjectLabel(subjectKey)} / ${group.display} / ${chapterName} / ${sectionName}`, reason: sectionReason });
+            });
+        });
+    });
+    return issues;
+}
+
+function renderQualityReport({ title, issues = [], merges = [], hidden = [], checkedSubjects = 1 }) {
+    const result = document.getElementById('qualityCheckResult');
+    if (!result) return;
+    const summary = `<div class="quality-summary">
+        <div class="quality-stat"><strong>${checkedSubjects}</strong>科目</div>
+        <div class="quality-stat"><strong>${issues.length}</strong>待確認</div>
+        <div class="quality-stat"><strong>${hidden.length}</strong>已隱藏</div>
+      </div>`;
+    if (!issues.length && !merges.length && !hidden.length) {
+        result.innerHTML = `<div class="quality-item ok">${htmlEscape(title)}：沒有發現明顯問題。</div>${summary}`;
+        return;
+    }
+    const issueHtml = issues.slice(0, 80).map(issue =>
+        `<div class="quality-item"><span class="quality-tag review">${htmlEscape(issue.type)}</span>${htmlEscape(issue.path)}<div class="archive-meta">${htmlEscape(issue.reason)}</div></div>`
+    ).join('');
+    const mergeHtml = merges.slice(0, 40).map(item =>
+        `<div class="quality-item"><span class="quality-tag merge">合併</span>${htmlEscape(item.display)}<div class="archive-meta">${htmlEscape(item.detail)}</div></div>`
+    ).join('');
+    const hiddenHtml = hidden.slice(0, 60).map(item =>
+        `<div class="quality-item"><span class="quality-tag hide">隱藏</span>${htmlEscape(item.path)}<div class="archive-meta">${htmlEscape(item.reason)}</div></div>`
+    ).join('');
+    const moreCount = Math.max(0, issues.length - 80) + Math.max(0, merges.length - 40) + Math.max(0, hidden.length - 60);
+    result.innerHTML = `<div class="quality-item"><strong>${htmlEscape(title)}</strong></div>${summary}${issueHtml}${mergeHtml}${hiddenHtml}${moreCount ? `<div class="archive-meta">另有 ${moreCount} 筆未顯示。</div>` : ''}`;
+}
+
 function runQualityCheck() {
     const result = document.getElementById('qualityCheckResult');
     if (!result) return;
@@ -6307,27 +6365,61 @@ function runQualityCheck() {
         result.innerHTML = '<div class="quality-item">請先選擇科目。</div>';
         return;
     }
-    const issues = [];
-    getBookGroups(subjectKey).forEach(group => {
-        const bookReason = qualitySuspicionReason(group.display, 'book');
-        if (bookReason) issues.push({ type: '冊別', path: group.display, reason: bookReason });
-        const chapters = mergedBookChapters(subjectKey, group.names.join('||'));
-        Object.entries(chapters).forEach(([chapterName, sections]) => {
-            const chapterReason = qualitySuspicionReason(chapterName, 'chapter');
-            if (chapterReason) issues.push({ type: '章節', path: `${group.display} / ${chapterName}`, reason: chapterReason });
-            Object.keys(sections || {}).forEach(sectionName => {
-                const sectionReason = qualitySuspicionReason(sectionName, 'section');
-                if (sectionReason) issues.push({ type: '小節', path: `${group.display} / ${chapterName} / ${sectionName}`, reason: sectionReason });
-            });
-        });
-    });
+    const issues = collectQualityIssuesForSubject(subjectKey);
     if (!issues.length) {
         result.innerHTML = '<div class="quality-item ok">目前科目的冊別、章節、小節沒有發現明顯非學習內容。</div>';
         return;
     }
-    result.innerHTML = issues.slice(0, 60).map(issue =>
-        `<div class="quality-item"><span class="quality-tag">${htmlEscape(issue.type)}</span>${htmlEscape(issue.path)}<div class="archive-meta">${htmlEscape(issue.reason)}</div></div>`
-    ).join('') + (issues.length > 60 ? `<div class="archive-meta">另有 ${issues.length - 60} 筆未顯示。</div>` : '');
+    renderQualityReport({ title: `${qualitySubjectLabel(subjectKey)}資料檢查`, issues, checkedSubjects: 1 });
+}
+
+function subjectKeysForQualityScan() {
+    return Object.keys(BOOKS).filter(subjectKey => BOOKS[subjectKey] && Object.keys(BOOKS[subjectKey]).length);
+}
+
+function runAllQualityCheck() {
+    const subjectKeys = subjectKeysForQualityScan();
+    const issues = subjectKeys.flatMap(subjectKey => collectQualityIssuesForSubject(subjectKey));
+    renderQualityReport({ title: '全科資料檢查', issues, checkedSubjects: subjectKeys.length });
+}
+
+function collectMergeHiddenReport() {
+    const merges = [];
+    const hidden = [];
+    subjectKeysForQualityScan().forEach(subjectKey => {
+        const groups = getBookGroups(subjectKey);
+        groups.forEach(group => {
+            if (group.names.length > 1) {
+                merges.push({
+                    display: `${qualitySubjectLabel(subjectKey)} / ${group.display}`,
+                    detail: `合併 ${group.names.length} 個來源：${group.names.slice(0, 5).map(displayBookName).join('、')}${group.names.length > 5 ? '...' : ''}`,
+                });
+            }
+        });
+        Object.entries(BOOKS[subjectKey] || {}).forEach(([bookName, chapters]) => {
+            const display = displayBookNameForSubject(bookName, subjectKey);
+            if (isNoiseBookGroup(display, subjectKey)) {
+                hidden.push({ path: `${qualitySubjectLabel(subjectKey)} / ${display}`, reason: '冊別規則隱藏' });
+                return;
+            }
+            Object.entries(chapters || {}).forEach(([chapterName, sections]) => {
+                if (isNoiseProgressNode(chapterName)) {
+                    hidden.push({ path: `${qualitySubjectLabel(subjectKey)} / ${display} / ${chapterName}`, reason: '章節規則隱藏' });
+                }
+                Object.keys(sections || {}).forEach(sectionName => {
+                    if (isNoiseProgressNode(sectionName)) {
+                        hidden.push({ path: `${qualitySubjectLabel(subjectKey)} / ${display} / ${chapterName} / ${sectionName}`, reason: '小節規則隱藏' });
+                    }
+                });
+            });
+        });
+    });
+    return { merges, hidden };
+}
+
+function runMergeHiddenReport() {
+    const { merges, hidden } = collectMergeHiddenReport();
+    renderQualityReport({ title: '合併與隱藏摘要', merges, hidden, checkedSubjects: subjectKeysForQualityScan().length });
 }
 
 function clearQualityCheck() {
