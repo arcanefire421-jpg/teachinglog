@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📘 教學日誌生成器 (v0.5)</title>
+<title>📘 教學日誌生成器 (v0.6)</title>
 <style>
 /* 確保手機相容性及美觀 (CSS) */
 body { font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -55,6 +55,13 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .archive-actions button{font-size:.9rem;padding:6px 8px;margin:0;box-shadow:none;}
 .archive-tools{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin-top:7px;}
 .archive-tools input{margin-top:0;}
+.archive-item.favorite{border-color:#facc15;background:#fffbeb;}
+.archive-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;align-items:center;}
+.archive-filters select{width:auto;min-width:112px;margin-top:0;}
+.quality-panel{display:grid;gap:8px;margin-top:8px;}
+.quality-item{border:1px solid #e5e7eb;background:#ffffff;border-radius:10px;padding:8px;}
+.quality-tag{display:inline-block;border-radius:999px;padding:2px 7px;margin-right:5px;font-size:.82rem;font-weight:800;background:#fee2e2;color:#991b1b;}
+.quality-item.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;font-weight:800;}
 .progress-picker{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:start;}
 .progress-column{background:#f8fbff;border:1px solid #dbeafe;border-radius:10px;padding:8px;}
 .progress-column label:first-child{margin-top:0;}
@@ -105,11 +112,22 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 .output.compact .output-label{margin:0;font-size:.95rem;}
 .output.compact .output-value{line-height:1.35;}
 .output.compact .output-progress li{padding:3px 6px;margin:2px 0;}
+.output.line{padding:10px 12px;border-radius:11px;font-size:.94rem;width:max-content;max-width:100%;}
+.output.line .output-header{display:none;}
+.output.line .output-grid{gap:4px;}
+.output.line .output-item{grid-template-columns:24px 60px minmax(0,1fr);gap:6px;align-items:center;padding:5px 7px;border-radius:8px;}
+.output.line .output-icon{width:22px;height:22px;border-radius:7px;font-size:.86rem;}
+.output.line .output-label{margin:0;font-size:.9rem;}
+.output.line .output-value{line-height:1.28;}
+.output.line .output-progress li{padding:2px 5px;margin:1px 0;}
+.image-size-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.image-size-row select{width:auto;min-width:120px;margin-top:8px;}
 @media (max-width:520px){
   body{padding:4px;}
   .output{font-size:1rem;padding:14px 12px;}
   .output-item{grid-template-columns:1fr;gap:4px;}
   .output.compact .output-item{grid-template-columns:26px 64px 1fr;}
+  .output.line .output-item{grid-template-columns:22px 56px minmax(0,1fr);}
   .progress-picker{grid-template-columns:1fr;}
   .archive-tools{grid-template-columns:1fr;}
   input,select,textarea{font-size:1.01rem;}
@@ -129,7 +147,7 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
 </style>
 </head>
 <body>
-<h1>📘 教學日誌生成器 (v0.5)</h1>
+<h1>📘 教學日誌生成器 (v0.6)</h1>
 
 <div class="card">
   <label>🏫 班級模板</label>
@@ -282,6 +300,14 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
       <span class="chip" onclick="appendHomework('預習下次範圍')">預習下次範圍</span>
       <span class="chip" onclick="appendHomework('背誦重點')">背誦重點</span>
     </div>
+    <label style="margin-top:8px;">⚡ 常用組合</label>
+    <div class="quick-row">
+      <span class="chip" onclick="applyQuickCombo('講義＋背誦')">講義＋背誦</span>
+      <span class="chip" onclick="applyQuickCombo('小考＋訂正')">小考＋訂正</span>
+      <span class="chip" onclick="applyQuickCombo('段考複習')">段考複習</span>
+      <span class="chip" onclick="applyQuickCombo('錯題整理')">錯題整理</span>
+      <span class="chip" onclick="applyQuickCombo('回家演練')">回家演練</span>
+    </div>
     <div id="sentenceChips"></div>
     <input id="newSentence" placeholder="加到常用作業句庫（右鍵刪）">
     <button class="green" onclick="addSentence()">＋句庫</button>
@@ -293,6 +319,13 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
     <select id="outputStyle" style="width:auto;min-width:120px;">
       <option value="original">原始輸出</option>
       <option value="compact">緊密輸出</option>
+      <option value="line">LINE緊實</option>
+    </select>
+    <select id="imageSize" title="圖片尺寸" style="width:auto;min-width:120px;">
+      <option value="auto">圖片自動</option>
+      <option value="line">LINE貼文</option>
+      <option value="a4">A4列印</option>
+      <option value="ig">IG直式</option>
     </select>
     <button class="orange" onclick="generate()">🚀 產生</button>
     <button onclick="copyOutput()">📋 複製</button>
@@ -317,7 +350,21 @@ button.danger{background:#ef4444;}button.green{background:#16a34a;}button.orange
     <input id="archiveSearch" placeholder="搜尋日期、班級、科目或內容" oninput="renderArchives()">
     <button type="button" class="link-button" onclick="clearArchiveSearch()">清除搜尋</button>
   </div>
+  <div class="archive-filters">
+    <select id="archiveSubjectFilter" onchange="renderArchives()"><option value="">全部科目</option></select>
+    <select id="archiveClassFilter" onchange="renderArchives()"><option value="">全部班級</option></select>
+    <button type="button" class="link-button" onclick="toggleFavoriteOnly()">只看收藏</button>
+  </div>
   <div id="archiveList" class="archive-list">目前沒有存檔。</div>
+</div>
+
+<div class="card">
+  <label>🔍 資料檢查</label>
+  <div class="quick-row">
+    <button type="button" onclick="runQualityCheck()">檢查目前科目</button>
+    <button type="button" class="link-button" onclick="clearQualityCheck()">清除</button>
+  </div>
+  <div id="qualityCheckResult" class="quality-panel"></div>
 </div>
 
 <script>
@@ -5548,7 +5595,7 @@ const JUNIOR_NATURAL_BOOKS = {
 };
 BOOKS.science = Object.assign({}, JUNIOR_NATURAL_BOOKS, BOOKS.science || {});
 
-// ================ 2. JS 變數與輔助函數 (v0.5) ================
+// ================ 2. JS 變數與輔助函數 (v0.6) ================
 let teamsScopeBooksLoaded = false;
 window.teamsScopeBooksLoaded = false;
 
@@ -5594,6 +5641,7 @@ let templates = safeJSONParse('teachingLogTemplates', []);
 let sentences = safeJSONParse('homeworkSentences', ["講義 p.X~Y", "習題卷", "考卷訂正", "複習指定範圍"]);
 let archives = safeJSONParse('teachingLogArchives', []);
 let currentArchivePayload = null;
+let archiveFavoriteOnly = false;
 
 function saveCache() { localStorage.setItem('teachingLogCache', JSON.stringify(progressCache)); renderCache(); }
 function saveArchives() { localStorage.setItem('teachingLogArchives', JSON.stringify(archives)); renderArchives(); }
@@ -5909,6 +5957,7 @@ function getBookGroups(subjectKey) {
     bookNames.forEach(bookName => {
         const display = displayBookNameForSubject(bookName, subjectKey);
         if (isNoiseBookGroup(display, subjectKey)) return;
+        if (subjectKey === 'math' && selectedLevelPrefix() === '高中' && !highMathBookAllowedForGrade(display)) return;
         if (!groups.has(display)) groups.set(display, []);
         groups.get(display).push(bookName);
     });
@@ -5927,6 +5976,16 @@ function isNoiseBookGroup(displayName, subjectKey) {
         return /(講義|教材|EZ100|教用|學用|PPT|備課|課本|習作|雙向溝通|i學習)/i.test(name);
     }
     return false;
+}
+
+function highMathBookAllowedForGrade(displayName) {
+    if (document.getElementById('classTypeSelect')?.value === '總複習') return true;
+    const grade = document.getElementById('gradeSelect')?.value || '';
+    const name = String(displayName || '').trim();
+    if (grade === '高一') return /^(第一冊|第二冊)$/.test(name);
+    if (grade === '高二') return /^(第三冊A|第三冊B|第四冊A|第四冊B)$/.test(name);
+    if (grade === '高三') return /^(數甲上|數甲下|數乙上|數乙下|學測總複習-數A|學測總複習-數B|總複習)$/.test(name);
+    return true;
 }
 
 function bookHasVisibleChapters(subjectKey, bookName) {
@@ -6229,6 +6288,53 @@ function searchProgress() {
     results.innerHTML = html;
 }
 
+function qualitySuspicionReason(text, kind) {
+    const value = String(text || '').trim();
+    if (!value) return '空白名稱';
+    if (isNoiseProgressNode(value)) return '疑似資源檔或非學習內容';
+    if (kind === 'book' && isNoiseBookGroup(value, document.getElementById('subject')?.value || '')) return '疑似講義/資源冊別';
+    if (/^(第[一二三四五六七八九十\d]+冊|首冊)$/.test(value) && kind !== 'book') return '章節像冊別名稱';
+    if (/^(教用|學用|教師|學生|解析|解答|講義|教材|附件|圖檔|PPT)/.test(value)) return '疑似檔案用途名稱';
+    if (/^[A-Z]{1,3}\d+[-_]\d+$/i.test(value)) return '疑似檔名代碼';
+    return '';
+}
+
+function runQualityCheck() {
+    const result = document.getElementById('qualityCheckResult');
+    if (!result) return;
+    const subjectKey = document.getElementById('subject')?.value || '';
+    if (!subjectKey || !BOOKS[subjectKey]) {
+        result.innerHTML = '<div class="quality-item">請先選擇科目。</div>';
+        return;
+    }
+    const issues = [];
+    getBookGroups(subjectKey).forEach(group => {
+        const bookReason = qualitySuspicionReason(group.display, 'book');
+        if (bookReason) issues.push({ type: '冊別', path: group.display, reason: bookReason });
+        const chapters = mergedBookChapters(subjectKey, group.names.join('||'));
+        Object.entries(chapters).forEach(([chapterName, sections]) => {
+            const chapterReason = qualitySuspicionReason(chapterName, 'chapter');
+            if (chapterReason) issues.push({ type: '章節', path: `${group.display} / ${chapterName}`, reason: chapterReason });
+            Object.keys(sections || {}).forEach(sectionName => {
+                const sectionReason = qualitySuspicionReason(sectionName, 'section');
+                if (sectionReason) issues.push({ type: '小節', path: `${group.display} / ${chapterName} / ${sectionName}`, reason: sectionReason });
+            });
+        });
+    });
+    if (!issues.length) {
+        result.innerHTML = '<div class="quality-item ok">目前科目的冊別、章節、小節沒有發現明顯非學習內容。</div>';
+        return;
+    }
+    result.innerHTML = issues.slice(0, 60).map(issue =>
+        `<div class="quality-item"><span class="quality-tag">${htmlEscape(issue.type)}</span>${htmlEscape(issue.path)}<div class="archive-meta">${htmlEscape(issue.reason)}</div></div>`
+    ).join('') + (issues.length > 60 ? `<div class="archive-meta">另有 ${issues.length - 60} 筆未顯示。</div>` : '');
+}
+
+function clearQualityCheck() {
+    const result = document.getElementById('qualityCheckResult');
+    if (result) result.innerHTML = '';
+}
+
 // ================ 日期與模板 ================
 function formatDate(date) {
   const d = new Date(date);
@@ -6322,10 +6428,14 @@ function templateContextFromName(name) {
   const gradeMatch = text.match(/(小[一二三四五六]|國[一二三]|高[一二三])/);
   const subjectNames = ['國文', '國語', '英文', '英語', '數學', '社會', '自然', '物理', '化學', '生物', '地科', '歷史', '地理', '公民', '其他'];
   const subjectName = subjectNames.find(subject => text.includes(subject)) || '';
+  const typeNames = ['總複習', '家教', '輔導', '進度'];
+  const typeName = typeNames.find(type => text.includes(type)) || '';
   return {
     grade: gradeMatch ? gradeMatch[1] : '',
     level: levelFromGrade(gradeMatch ? gradeMatch[1] : ''),
+    subjectName: subjectName === '國語' ? '國文' : subjectName === '英語' ? '英文' : subjectName,
     subjectKey: subjectKeyFromName(subjectName),
+    typeName,
   };
 }
 
@@ -6336,6 +6446,12 @@ function syncProgressFromTemplate() {
   const subjectName = document.getElementById("subjectSelect")?.value || "";
   const level = customContext.level || levelFromGrade(grade);
   const subjectKey = customContext.subjectKey || subjectKeyFromName(subjectName);
+  const gradeSelect = document.getElementById("gradeSelect");
+  const subjectTemplateSelect = document.getElementById("subjectSelect");
+  const typeSelect = document.getElementById("classTypeSelect");
+  if (customContext.grade && gradeSelect) gradeSelect.value = customContext.grade;
+  if (customContext.subjectName && subjectTemplateSelect) subjectTemplateSelect.value = customContext.subjectName;
+  if (customContext.typeName && typeSelect) typeSelect.value = customContext.typeName;
   const levelSelect = document.getElementById('levelFilter');
   const subjectSelect = document.getElementById('subject');
   if (levelSelect && level) levelSelect.value = level;
@@ -6370,6 +6486,22 @@ function appendHomework(s) {
     homework.value += (homework.value.match(/[。、！？]$/) ? '' : '＋') + s;
   }
 }
+
+function applyQuickCombo(type) {
+    const combos = {
+        '講義＋背誦': { homework: ['完成講義', '背誦重點'] },
+        '小考＋訂正': { quiz: '隨堂小考', homework: ['訂正錯題', '複習今日進度'] },
+        '段考複習': { progress: '段考複習', quiz: '段考重點檢核', homework: ['整理錯題', '複習指定範圍'] },
+        '錯題整理': { progress: '錯題訂正', homework: ['完成錯題整理', '訂正錯題'] },
+        '回家演練': { homework: ['完成題型演練', '複習今日進度'] },
+    };
+    const combo = combos[type];
+    if (!combo) return;
+    if (combo.progress) appendCustomProgress(combo.progress);
+    if (combo.quiz) appendFieldText('quiz', combo.quiz);
+    (combo.homework || []).forEach(item => appendHomework(item));
+}
+
 function deleteSentence(index, showConfirm = false) {
     if (showConfirm && !confirm(`確定刪除句庫：${sentences[index]} 嗎？`)) return;
     sentences.splice(index, 1);
@@ -6461,7 +6593,7 @@ function generate() {
     
     const out = document.getElementById("output");
     out.style.display="block";
-    out.className = `output ${outputStyle === 'compact' ? 'compact' : ''}`;
+    out.className = `output ${outputStyle === 'compact' ? 'compact' : outputStyle === 'line' ? 'line' : ''}`;
     out.dataset.copyText = plainText;
     out.innerHTML = renderOutputHtml(sections, date, outputStyle);
     out.scrollIntoView({behavior:"smooth"});
@@ -6486,7 +6618,7 @@ function renderOutputHtml(sections, date, outputStyle = 'original') {
         const valueHtml = section.type === 'progress'
             ? `<ul class="output-progress">${section.value.split('\n').filter(Boolean).map(line => `<li>${htmlEscape(line)}</li>`).join('')}</ul>`
             : htmlEscape(section.value);
-        if (outputStyle === 'compact') {
+        if (outputStyle === 'compact' || outputStyle === 'line') {
             return `<div class="output-item ${itemMeta.cls}">
                       <div class="output-icon">${itemMeta.icon}</div>
                       <div class="output-label">${htmlEscape(section.label)}</div>
@@ -6599,6 +6731,36 @@ function archiveMatchesSearch(item, keyword) {
     return haystack.includes(keyword.toLowerCase());
 }
 
+function uniqueArchiveValues(field) {
+    return Array.from(new Set(archives.map(item => item[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+}
+
+function renderArchiveFilters() {
+    const subjectSelect = document.getElementById('archiveSubjectFilter');
+    const classSelect = document.getElementById('archiveClassFilter');
+    if (!subjectSelect || !classSelect) return;
+    const currentSubject = subjectSelect.value;
+    const currentClass = classSelect.value;
+    subjectSelect.innerHTML = '<option value="">全部科目</option>' + uniqueArchiveValues('subject').map(value => `<option value="${htmlEscape(value)}">${htmlEscape(value)}</option>`).join('');
+    classSelect.innerHTML = '<option value="">全部班級</option>' + uniqueArchiveValues('className').map(value => `<option value="${htmlEscape(value)}">${htmlEscape(value)}</option>`).join('');
+    subjectSelect.value = currentSubject;
+    classSelect.value = currentClass;
+}
+
+function archivePassesFilters(item) {
+    const subjectFilter = document.getElementById('archiveSubjectFilter')?.value || '';
+    const classFilter = document.getElementById('archiveClassFilter')?.value || '';
+    if (archiveFavoriteOnly && !item.favorite) return false;
+    if (subjectFilter && item.subject !== subjectFilter) return false;
+    if (classFilter && item.className !== classFilter) return false;
+    return true;
+}
+
+function toggleFavoriteOnly() {
+    archiveFavoriteOnly = !archiveFavoriteOnly;
+    renderArchives();
+}
+
 function clearArchiveSearch() {
     const input = document.getElementById('archiveSearch');
     if (input) input.value = '';
@@ -6608,13 +6770,14 @@ function clearArchiveSearch() {
 function renderArchives() {
     const list = document.getElementById('archiveList');
     if (!list) return;
+    renderArchiveFilters();
     if (!archives.length) {
         list.innerHTML = '目前沒有存檔。';
         return;
     }
     const groupBy = document.getElementById('archiveGroupBy')?.value || 'date';
     const keyword = document.getElementById('archiveSearch')?.value.trim() || '';
-    const visibleArchives = archives.filter(item => archiveMatchesSearch(item, keyword));
+    const visibleArchives = archives.filter(item => archiveMatchesSearch(item, keyword) && archivePassesFilters(item));
     if (!visibleArchives.length) {
         list.innerHTML = '沒有符合搜尋的存檔。';
         return;
@@ -6629,12 +6792,13 @@ function renderArchives() {
     groups.forEach((items, key) => {
         html += `<div class="archive-title">${htmlEscape(key)} (${items.length})</div>`;
         items.forEach(item => {
-            html += `<div class="archive-item">
+            html += `<div class="archive-item ${item.favorite ? 'favorite' : ''}">
               <div>
                 <div class="archive-title">${htmlEscape(item.title || '教學日誌')}</div>
                 <div class="archive-meta">${htmlEscape(item.date || '')}　${htmlEscape(item.subject || '')}</div>
               </div>
               <div class="archive-actions">
+                <button onclick="toggleArchiveFavorite('${item.id}')">${item.favorite ? '取消收藏' : '收藏'}</button>
                 <button onclick="loadArchive('${item.id}')">查看</button>
                 <button onclick="copyArchive('${item.id}')">複製</button>
                 <button onclick="downloadArchiveText('${item.id}')">文字檔</button>
@@ -6645,6 +6809,11 @@ function renderArchives() {
         });
     });
     list.innerHTML = html;
+}
+
+function toggleArchiveFavorite(id) {
+    archives = archives.map(item => item.id === id ? { ...item, favorite: !item.favorite } : item);
+    saveArchives();
 }
 
 function findArchive(id) {
@@ -6660,7 +6829,7 @@ function loadArchive(id) {
     const styleSelect = document.getElementById('outputStyle');
     if (styleSelect) styleSelect.value = style;
     out.style.display = 'block';
-    out.className = `output ${style === 'compact' ? 'compact' : ''}`;
+    out.className = `output ${style === 'compact' ? 'compact' : style === 'line' ? 'line' : ''}`;
     out.dataset.copyText = archiveCopyText(item);
     out.innerHTML = renderOutputHtml(item.sections || [], item.date, style);
     out.scrollIntoView({ behavior: 'smooth' });
@@ -6725,11 +6894,13 @@ function saveOutputImage() {
     }
 
     loadHtml2Canvas().then(() => {
+        const imageSize = document.getElementById('imageSize')?.value || 'auto';
+        const restore = applyImageSizeForCapture(out, imageSize);
         return html2canvas(out, {
             backgroundColor: '#ffffff',
             scale: Math.max(2, window.devicePixelRatio || 1),
             useCORS: true,
-        });
+        }).finally(restore);
     }).then(canvas => {
         const link = document.createElement('a');
         link.download = `教學日誌_${formatDate(new Date())}.png`;
@@ -6738,6 +6909,30 @@ function saveOutputImage() {
     }).catch(() => {
         alert("圖片產生失敗，請再試一次");
     });
+}
+
+function applyImageSizeForCapture(out, imageSize) {
+    const original = {
+        width: out.style.width,
+        maxWidth: out.style.maxWidth,
+        minHeight: out.style.minHeight,
+    };
+    const sizes = {
+        line: { width: '720px', minHeight: '' },
+        a4: { width: '794px', minHeight: '1123px' },
+        ig: { width: '720px', minHeight: '960px' },
+    };
+    const size = sizes[imageSize];
+    if (size) {
+        out.style.width = size.width;
+        out.style.maxWidth = size.width;
+        out.style.minHeight = size.minHeight;
+    }
+    return () => {
+        out.style.width = original.width;
+        out.style.maxWidth = original.maxWidth;
+        out.style.minHeight = original.minHeight;
+    };
 }
 
 function loadHtml2Canvas() {
