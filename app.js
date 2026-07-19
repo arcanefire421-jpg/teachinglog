@@ -648,8 +648,8 @@ function quickToday() {
   generate();
 }
 
-function quickTomorrow() {
-  $("date").value = todayIso(1);
+function quickYesterday() {
+  $("date").value = todayIso(-1);
   generate();
 }
 
@@ -996,7 +996,6 @@ function switchView(view) {
   document.querySelectorAll("[data-view-tab]").forEach(button => {
     button.classList.toggle("active", button.dataset.viewTab === view);
   });
-  $("quickTodayBtn").style.display = view === "progress" ? "" : "none";
   if (view === "data") renderCourseReviewCurrent();
 }
 
@@ -1439,8 +1438,8 @@ function bindEvents() {
   $("saveTemplateBtn").addEventListener("click", saveTemplate);
   $("clearTemplateBtn").addEventListener("click", clearTemplates);
   $("clearBtn").addEventListener("click", clearForm);
+  $("quickYesterdayBtn").addEventListener("click", quickYesterday);
   $("quickTodayBtn").addEventListener("click", quickToday);
-  $("quickTomorrowBtn").addEventListener("click", quickTomorrow);
   $("exportBtn").addEventListener("click", exportBackup);
   $("search").addEventListener("input", renderArchives);
   $("clearArchiveSearchBtn").addEventListener("click", clearArchiveSearch);

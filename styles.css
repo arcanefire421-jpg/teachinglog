@@ -151,6 +151,31 @@ label span {
   font-weight: 800;
 }
 
+.date-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.date-label-row > span:first-child {
+  margin-bottom: 0;
+}
+
+.date-shortcuts {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.date-shortcuts .mini-btn {
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: .82rem;
+  box-shadow: none;
+}
+
 input, select, textarea {
   width: 100%;
   min-height: 42px;
