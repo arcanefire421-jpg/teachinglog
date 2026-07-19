@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>課程資料檢查 - 教學日誌生成器</title>
+  <link rel="stylesheet" href="course-check.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Local data review</p>
+      <h1>課程資料檢查</h1>
+    </div>
+    <a class="nav-link" href="index.html">回日誌</a>
+  </header>
+
+  <main class="layout">
+    <section class="panel filters" aria-label="課程資料篩選">
+      <label>
+        <span>科目</span>
+        <select id="subjectSelect"></select>
+      </label>
+      <label>
+        <span>冊別 / 教材</span>
+        <select id="bookSelect"></select>
+      </label>
+      <label>
+        <span>搜尋</span>
+        <input id="searchInput" placeholder="章、節、小重點關鍵字">
+      </label>
+      <div class="stats" id="stats">載入中...</div>
+    </section>
+
+    <section class="panel actions" aria-label="檢查工具">
+      <button id="showAllBtn" type="button">展開全部章節</button>
+      <button id="collapseBtn" class="secondary" type="button">收合</button>
+      <button id="copyPathBtn" class="secondary" type="button">複製目前路徑</button>
+      <button id="exportSubjectBtn" class="secondary" type="button">匯出本科 CSV</button>
+    </section>
+
+    <section class="panel fix-panel" aria-labelledby="fixTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="fixTitle">待修正清單</h2>
+          <p>檢查時先標記，最後匯出整理。</p>
+        </div>
+        <span id="fixCount" class="badge">0</span>
+      </div>
+      <div class="fix-actions">
+        <button id="exportFixesBtn" class="secondary" type="button">匯出清單</button>
+        <button id="clearFixesBtn" class="secondary danger-text" type="button">清空</button>
+      </div>
+      <div id="fixList" class="fix-list"></div>
+    </section>
+
+    <section class="panel issues" aria-labelledby="issueTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="issueTitle">資料提醒</h2>
+          <p>先抓容易造成畫面冗長或命名不一致的項目。</p>
+        </div>
+        <span id="issueCount" class="badge">0</span>
+      </div>
+      <div id="issueList" class="issue-list"></div>
+    </section>
+
+    <section class="panel outline-panel" aria-labelledby="outlineTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="outlineTitle">章節清單</h2>
+          <p id="currentPath">請選擇科目與教材。</p>
+        </div>
+      </div>
+      <div id="outline" class="outline"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="course-check.js"></script>
+</body>
+</html>
