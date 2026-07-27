@@ -113,6 +113,9 @@ p { color: var(--muted); line-height: 1.45; }
 }
 
 .primary-panel, .archive-panel, .filename-panel { grid-column: 1; }
+.question-panel { grid-column: 1 / -1; }
+.handout-panel { grid-column: 1 / -1; }
+.offline-panel { grid-column: 1 / -1; }
 .output-panel { grid-column: 2; grid-row: 1 / span 2; align-self: start; position: sticky; top: 88px; }
 .archive-panel { order: 1; }
 .filename-panel { order: 2; }
@@ -245,6 +248,33 @@ button:hover { filter: brightness(.97); }
 
 .template-row { margin-bottom: 10px; }
 
+.handout-example-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px dashed #c6d3e2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.handout-example-chip .chip {
+  border-color: #b8c7d9;
+  background: #fff;
+  color: var(--blue);
+  border-radius: 8px 0 0 8px;
+}
+
+.handout-example-chip .chip-delete {
+  border-radius: 0 8px 8px 0;
+}
+
+.empty-inline {
+  color: var(--muted);
+  font-size: .92rem;
+}
+
 .chip {
   min-height: 34px;
   padding: 7px 11px;
@@ -335,6 +365,41 @@ button:hover { filter: brightness(.97); }
   border-color: #bfe0ce;
   background: var(--soft-green);
   color: #166241;
+}
+
+.topic-list .path-chip.selectable {
+  border-color: #b8c7d9;
+  background: #fff;
+  color: #18447f;
+}
+
+.topic-list .path-chip.selected {
+  border-color: var(--blue);
+  background: var(--soft-blue);
+  color: #143f86;
+}
+
+.question-topic-box {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed #b8c7d9;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.question-actions {
+  margin-top: 4px;
+}
+
+.question-actions .primary-action {
+  min-width: 132px;
+  background: #0f766e;
+  border-color: #0f766e;
+}
+
+.question-actions .primary-action:hover {
+  background: #115e59;
+  border-color: #115e59;
 }
 
 .cache-box {
@@ -716,6 +781,29 @@ button:hover { filter: brightness(.97); }
   overflow-wrap: anywhere;
 }
 
+.question-summary {
+  margin: 12px 0;
+}
+
+#questionPromptOutput,
+#handoutPromptOutput {
+  min-height: 360px;
+  font-family: "Cascadia Mono", "Consolas", "Microsoft JhengHei", monospace;
+  font-size: .92rem;
+  line-height: 1.55;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.handout-panel .checkline {
+  min-height: 44px;
+}
+
 .archive-list {
   display: grid;
   gap: 10px;
@@ -1073,6 +1161,70 @@ button:hover { filter: brightness(.97); }
   color: var(--muted);
 }
 
+.offline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.offline-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.offline-card h3 {
+  margin: 0 0 5px;
+  color: #253858;
+  font-size: 1.05rem;
+}
+
+.offline-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.offline-list div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.offline-list dt {
+  color: #344054;
+  font-weight: 900;
+}
+
+.offline-list dd {
+  min-width: 0;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #eef4ff;
+  color: #1b3768;
+  font-family: Consolas, "Microsoft JhengHei", monospace;
+  overflow-wrap: anywhere;
+}
+
+.offline-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #bfe0ce;
+  border-radius: 8px;
+  background: var(--soft-green);
+}
+
+.offline-note strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #176445;
+}
+
 .mark {
   background: #fff1a8;
   color: inherit;
@@ -1100,9 +1252,10 @@ button:hover { filter: brightness(.97); }
 
 @media (max-width: 860px) {
   .app-shell { grid-template-columns: 1fr; }
-  .primary-panel, .archive-panel, .filename-panel, .output-panel { grid-column: auto; grid-row: auto; }
+  .primary-panel, .archive-panel, .filename-panel, .output-panel, .offline-panel { grid-column: auto; grid-row: auto; }
   .output-panel { position: static; }
   .course-data-grid { grid-template-columns: 1fr; }
+  .offline-grid { grid-template-columns: 1fr; }
   .course-data-outline { min-height: auto; }
 }
 
@@ -1121,6 +1274,7 @@ button:hover { filter: brightness(.97); }
   .app-shell { padding: 10px; gap: 10px; }
   .panel { padding: 12px; }
   .field-grid.two, .field-grid.three { grid-template-columns: 1fr; }
+  .check-grid { grid-template-columns: 1fr; }
   .compact-fields { gap: 8px; }
   .filename-result { grid-template-columns: 1fr; }
   .toolbar select, .toolbar button { flex: 1 1 140px; }

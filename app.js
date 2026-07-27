@@ -4,7 +4,8 @@ const STORAGE = {
   draft: "teachinglog.v08.draft",
   fixes: "teachinglog.courseFixes.v1",
   progressCache: "teachinglog.v09.progressCache",
-  homeworkPhrases: "teachinglog.v09.homeworkPhrases"
+  homeworkPhrases: "teachinglog.v09.homeworkPhrases",
+  handoutExamples: "teachinglog.handoutExamples.v1"
 };
 
 const $ = (id) => document.getElementById(id);
@@ -18,6 +19,74 @@ let courseReviewExpanded = false;
 let courseFixes = readJson(STORAGE.fixes, []);
 let progressCache = readJson(STORAGE.progressCache, []);
 let homeworkPhrases = readJson(STORAGE.homeworkPhrases, ["完成講義", "訂正錯題", "複習今日進度", "預習下次範圍"]);
+let questionSelectedTopics = new Set();
+let handoutSelectedTopics = new Set();
+
+const DEFAULT_HANDOUT_EXAMPLES = [
+  {
+    id: "biologyInheritance",
+    name: "生物遺傳範例",
+    grade: "高一",
+    subject: "生物",
+    book: "基礎生物（全）",
+    chapter: "第2章 遺傳",
+    section: "2-2 遺傳的染色體學說之發展歷程",
+    title: "第2章 遺傳：2-2 遺傳的染色體學說之發展歷程",
+    audience: "both",
+    style: "softGray",
+    topics: ["遺傳的染色體學說", "性染色體的發現與性聯遺傳"],
+    include: {
+      toc: true,
+      concepts: true,
+      examples: true,
+      practice: true,
+      answers: true,
+      teacherNotes: false
+    },
+    exampleCount: 2,
+    practiceCount: 4,
+    questionCounts: { calculation: 5, concept: 5, thinking: 5 },
+    questionSource: "mixed",
+    questionCandidateCount: 30,
+    notes: "無；請依課程範圍自行整理成適合上課使用的講義。"
+  }
+];
+let handoutExamples = readJson(STORAGE.handoutExamples, DEFAULT_HANDOUT_EXAMPLES);
+
+const HANDOUT_TEACHER_BACKGROUND = [
+  "你將扮演一位擁有四十年教學經驗的專業高中自然科學老師，專精於高中自然科學所有領域（物理、化學、生物、地球科學），並對課綱、考試趨勢與學生盲點有深刻洞察。你的教學風格嚴謹、權威且能深入淺出。",
+  "核心任務是根據指定主題，規劃教學進度並編寫高三升大學程度的參考書講義，目標是建立完整、深入且權威的知識體系，以應對考試並培養科學素養。",
+  "講義應嚴格遵循大標題、子標題、小標題架構；每個小節目標篇幅約 20 頁。若單次任務無法完成完整篇幅，先完成第一小節並等待下一個指令。",
+  "每個小標題下須包含九個部分：定義、說明、定理、公式、範例與解法、隨堂演練、科學素養計算題 5 題、科學素養觀念理解題 5 題、科學素養思考題 5 題。",
+  "講義說明部分應專業、權威、詳盡且富有啟發性；詳解部分應簡潔、精準、一針見血。",
+  "互動流程：用戶將提供主題，你需根據上述要求製作第一小節講義內容。完成後，等待下一個指令。在開始之前，請先確認你已完全理解以上所有指令，並準備好開始教學。"
+].join("\n");
+
+const QUESTION_STYLE_LABELS = {
+  standard: "標準快考版",
+  gray: "灰階列印版",
+  reference: "參考書精緻版",
+  exam: "段考模擬版",
+  correction: "錯題訂正版",
+  teacher: "教師備課版"
+};
+
+const QUESTION_LAYOUT_LABELS = {
+  spacious: "寬鬆作答版",
+  compact: "緊湊省紙版",
+  twoColumn: "雙欄選擇題版",
+  card: "單題卡片版",
+  formal: "正式考卷版",
+  separateAnswers: "答案分離版",
+  bw: "黑白影印版"
+};
+
+const QUESTION_TYPOGRAPHY_LABELS = {
+  kai12: "標楷體 12 pt",
+  kai11: "標楷體 11 pt",
+  jhenghei12: "微軟正黑體 12 pt",
+  jhenghei11: "微軟正黑體 11 pt"
+};
 
 function readJson(key, fallback) {
   try {
@@ -29,6 +98,114 @@ function readJson(key, fallback) {
 
 function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function schoolLevelFromGrade(grade) {
+  if (/^小/.test(grade)) return "primary";
+  if (/^國/.test(grade)) return "junior";
+  if (/^高/.test(grade)) return "senior";
+  return "";
+}
+
+function bookMatchesGrade(book, grade) {
+  const level = schoolLevelFromGrade(grade);
+  if (!level) return true;
+  const name = String(book || "");
+  if (level === "primary") return /^國小/.test(name) || /升私中/.test(name);
+  if (level === "junior") return /^國中/.test(name);
+  return /^高中/.test(name) || /^基礎/.test(name) || /^選修/.test(name) || /^地球科學/.test(name);
+}
+
+const COURSE_COLLATOR = new Intl.Collator("zh-Hant", { numeric: true, sensitivity: "base" });
+
+function courseLevelRank(book) {
+  const name = String(book || "");
+  if (/^國小/.test(name)) return 1;
+  if (/^國中/.test(name)) return 2;
+  if (/^高中|^基礎|^選修|^地球科學/.test(name)) return 3;
+  return 9;
+}
+
+function courseVersionName(book) {
+  const name = String(book || "");
+  const match = name.match(/^(?:國小|國中|高中)?(.+?)版/);
+  if (match) return match[1];
+  if (/^基礎/.test(name)) return "基礎";
+  if (/^選修/.test(name)) return "選修";
+  if (/^地球科學/.test(name)) return "地球科學";
+  return name.replace(/\(.+?\)/g, "");
+}
+
+function chineseNumberValue(text) {
+  const map = { 零: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+  if (/^\d+$/.test(text)) return Number(text);
+  if (text === "十") return 10;
+  const tenParts = text.split("十");
+  if (tenParts.length === 2) {
+    const tens = tenParts[0] ? map[tenParts[0]] : 1;
+    const ones = tenParts[1] ? map[tenParts[1]] : 0;
+    return (tens || 0) * 10 + (ones || 0);
+  }
+  return map[text] ?? 999;
+}
+
+function romanNumberValue(text) {
+  const clean = String(text || "").replace(/[()（）\s]/g, "").toUpperCase();
+  return { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 }[clean] ?? 999;
+}
+
+function courseVolumeRank(book) {
+  const name = String(book || "");
+  const volume = name.match(/第([零一二三四五六七八九十\d]+)冊/);
+  if (volume) return chineseNumberValue(volume[1]);
+  const elective = name.match(/選修[^IVX]*[（(]?\s*([IVX]+)\s*[）)]?/i);
+  if (elective) return 100 + romanNumberValue(elective[1]);
+  if (/全/.test(name)) return 0;
+  if (/總複習|會考|升私中/.test(name)) return 900;
+  return 999;
+}
+
+function courseYear(book) {
+  const match = String(book || "").match(/(\d{2,3})(?:學年|上|下)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function courseTermRank(book) {
+  const name = String(book || "");
+  if (/\d{2,3}上/.test(name)) return 1;
+  if (/\d{2,3}下/.test(name)) return 2;
+  return 0;
+}
+
+function sortCourseBooks(books) {
+  return [...books].sort((a, b) =>
+    courseLevelRank(a) - courseLevelRank(b) ||
+    COURSE_COLLATOR.compare(courseVersionName(a), courseVersionName(b)) ||
+    courseVolumeRank(a) - courseVolumeRank(b) ||
+    courseYear(a) - courseYear(b) ||
+    courseTermRank(a) - courseTermRank(b) ||
+    COURSE_COLLATOR.compare(a, b)
+  );
+}
+
+function booksForGrade(subjectNode, grade) {
+  const books = Object.keys(subjectNode?.books || {});
+  const filtered = books.filter(book => bookMatchesGrade(book, grade));
+  return sortCourseBooks(filtered.length ? filtered : books);
+}
+
+function subjectsForGrade(grade) {
+  const subjects = Object.keys(filenameCourseData);
+  const filtered = subjects.filter(subject => booksForGrade(filenameCourseData[subject], grade).length);
+  return filtered.length ? filtered : subjects;
+}
+
+function setSelectOptions(selectId, values, preferred = "") {
+  const select = $(selectId);
+  select.innerHTML = values.map(value => `<option>${escapeHtml(value)}</option>`).join("");
+  if (preferred && values.includes(preferred)) {
+    select.value = preferred;
+  }
 }
 
 function todayIso(offset = 0) {
@@ -686,10 +863,14 @@ async function initFilenameTool() {
     filenameCourseData = await fetch("course-data.json").then(res => res.json());
     renderProgressSubjects();
     renderFilenameSubjects();
+    initQuestionBuilder();
+    initHandoutBuilder();
     initCourseReview();
   } catch {
     $("filenamePreview").textContent = "課程資料載入失敗，仍可手動輸入其他類型檔名。";
     $("topicChoices").textContent = "課程資料載入失敗，仍可手動輸入今日進度。";
+    $("questionTopicChoices").textContent = "課程資料載入失敗，請確認 course-data.json 是否存在。";
+    $("handoutTopicChoices").textContent = "課程資料載入失敗，請確認 course-data.json 是否存在。";
     $("dataOutline").innerHTML = `<div class="empty">課程資料載入失敗，請確認 course-data.json 是否存在。</div>`;
   }
   updateFilenameFields();
@@ -697,17 +878,14 @@ async function initFilenameTool() {
 }
 
 function renderProgressSubjects() {
-  const subjects = Object.keys(filenameCourseData);
-  $("progressSubject").innerHTML = subjects.map(subject => `<option>${escapeHtml(subject)}</option>`).join("");
-  if (subjects.includes($("subject").value)) {
-    $("progressSubject").value = $("subject").value;
-  }
+  const subjects = subjectsForGrade($("grade").value);
+  setSelectOptions("progressSubject", subjects, $("subject").value);
   renderProgressBooks();
 }
 
 function renderProgressBooks() {
-  const books = Object.keys(currentProgressSubject().books || {});
-  $("progressBook").innerHTML = books.map(book => `<option>${escapeHtml(book)}</option>`).join("");
+  const books = booksForGrade(currentProgressSubject(), $("grade").value);
+  setSelectOptions("progressBook", books, $("progressBook").value);
   renderProgressChapters();
 }
 
@@ -802,6 +980,595 @@ function searchProgressOptions() {
     : `<span>找不到符合的章節。</span>`;
 }
 
+function initQuestionBuilder() {
+  $("questionGrade").value = $("grade").value;
+  renderQuestionSubjects();
+  buildQuestionPrompt();
+}
+
+function renderQuestionSubjects() {
+  const subjects = subjectsForGrade($("questionGrade").value);
+  setSelectOptions("questionSubject", subjects, $("subject").value);
+  renderQuestionBooks();
+}
+
+function renderQuestionBooks() {
+  const books = booksForGrade(currentQuestionSubject(), $("questionGrade").value);
+  setSelectOptions("questionBook", books, $("questionBook").value);
+  renderQuestionChapters();
+}
+
+function renderQuestionChapters() {
+  const chapters = Object.keys(currentQuestionBook());
+  $("questionChapter").innerHTML = chapters.map(chapter => `<option>${escapeHtml(chapter)}</option>`).join("");
+  renderQuestionSections();
+}
+
+function renderQuestionSections() {
+  const sections = Object.keys(currentQuestionChapter());
+  $("questionSection").innerHTML = sections.map(section => `<option>${escapeHtml(section)}</option>`).join("");
+  renderQuestionTopics();
+}
+
+function renderQuestionTopics() {
+  questionSelectedTopics.clear();
+  const topics = currentQuestionSection();
+  if (!topics.length) {
+    $("questionTopicChoices").textContent = "這個節目前沒有知識點，會使用章節與節名當搜尋範圍。";
+    $("questionTopicCount").textContent = "0";
+    buildQuestionPrompt();
+    return;
+  }
+  $("questionTopicChoices").innerHTML = topics.map(topic => (
+    `<button class="path-chip selectable" type="button" data-question-topic="${escapeHtml(topic)}">${escapeHtml(topic)}</button>`
+  )).join("");
+  $("questionTopicCount").textContent = "0";
+  buildQuestionPrompt();
+}
+
+function currentQuestionSubject() {
+  return filenameCourseData[$("questionSubject").value] || { books: {} };
+}
+
+function currentQuestionBook() {
+  return currentQuestionSubject().books?.[$("questionBook").value] || {};
+}
+
+function currentQuestionChapter() {
+  return currentQuestionBook()[$("questionChapter").value] || {};
+}
+
+function currentQuestionSection() {
+  return currentQuestionChapter()[$("questionSection").value] || [];
+}
+
+function toggleQuestionTopic(topic, button) {
+  if (questionSelectedTopics.has(topic)) {
+    questionSelectedTopics.delete(topic);
+    button.classList.remove("selected");
+  } else {
+    questionSelectedTopics.add(topic);
+    button.classList.add("selected");
+  }
+  $("questionTopicCount").textContent = questionSelectedTopics.size;
+  buildQuestionPrompt();
+}
+
+function inferQuestionLevelKey(grade) {
+  if (/^高/.test(grade)) return "senior";
+  if (/^國/.test(grade)) return "junior";
+  if (/^小/.test(grade)) return "primary";
+  return "";
+}
+
+function questionBankSubjectName(grade, subject) {
+  const prefix = /^高/.test(grade) ? "高中" : /^國/.test(grade) ? "國中" : /^小/.test(grade) ? "國小" : "";
+  if (!prefix) return subject;
+  if (prefix === "高中" && ["物理", "化學", "生物", "地科", "國文", "英文", "數學"].includes(subject)) {
+    return `${prefix}${subject}`;
+  }
+  if (prefix === "國中" && ["自然", "社會", "國文", "英文", "數學"].includes(subject)) {
+    return `${prefix}${subject}`;
+  }
+  if (prefix === "國小" && ["自然", "社會", "國文", "英文", "數學"].includes(subject)) {
+    return `${prefix}${subject}`;
+  }
+  return `${prefix}${subject}`;
+}
+
+function questionKeywordParts() {
+  const manual = $("questionKeyword").value.trim();
+  const topics = Array.from(questionSelectedTopics);
+  return [
+    manual,
+    $("questionChapter").value,
+    $("questionSection").value,
+    ...topics
+  ].filter(Boolean);
+}
+
+function questionSpec() {
+  const grade = $("questionGrade").value;
+  const subject = $("questionSubject").value;
+  const basic = Number($("questionBasicCount").value || 0);
+  const middle = Number($("questionMiddleCount").value || 0);
+  const challenge = Number($("questionChallengeCount").value || 0);
+  const total = Number($("questionTotalCount").value || (basic + middle + challenge));
+  return {
+    grade,
+    subject,
+    api: "http://127.0.0.1:8787",
+    level: inferQuestionLevelKey(grade),
+    questionBankSubject: questionBankSubjectName(grade, subject),
+    book: $("questionBook").value,
+    chapter: $("questionChapter").value,
+    section: $("questionSection").value,
+    topics: Array.from(questionSelectedTopics),
+    keyword: questionKeywordParts().join(" "),
+    candidateCount: Number($("questionCandidateCount").value || 30),
+    totalCount: total,
+    difficulty: { basic, middle, challenge },
+    type: $("questionType").value,
+    output: $("questionOutput").value,
+    style: $("questionStyle").value,
+    styleLabel: QUESTION_STYLE_LABELS[$("questionStyle").value] || $("questionStyle").value,
+    layout: $("questionLayout").value,
+    layoutLabel: QUESTION_LAYOUT_LABELS[$("questionLayout").value] || $("questionLayout").value,
+    typography: $("questionTypography").value,
+    typographyLabel: QUESTION_TYPOGRAPHY_LABELS[$("questionTypography").value] || $("questionTypography").value,
+    notes: $("questionNotes").value.trim()
+  };
+}
+
+function outputLabel(value) {
+  return {
+    word: "Word 檔",
+    pdf: "Word 檔並轉出 PDF",
+    obsidian: "Obsidian Markdown"
+  }[value] || value;
+}
+
+function buildQuestionPrompt() {
+  if (!$("questionPromptOutput")) return;
+  const spec = questionSpec();
+  const topicText = spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
+  const notes = spec.notes || "仿題不要照抄原題；保留同一考點與難度，改數字、情境或問法。若原題明確標記為會考題，可以直接使用原題。";
+  const prompt = [
+    `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題，`,
+    `幫我篩成 ${spec.totalCount} 題${spec.type}。`,
+    ``,
+    `範圍：`,
+    `年級：${spec.grade}`,
+    `科目：${spec.subject}`,
+    `題庫 API subject：${spec.questionBankSubject}`,
+    `level：${spec.level}`,
+    `課程 / 冊別：${spec.book}`,
+    `章節：${spec.chapter}`,
+    `節：${spec.section}`,
+    `知識點：${topicText}`,
+    `搜尋關鍵字：${spec.keyword}`,
+    ``,
+    `要求：`,
+    `基礎 ${spec.difficulty.basic} 題、中等 ${spec.difficulty.middle} 題、挑戰 ${spec.difficulty.challenge} 題。`,
+    `使用仿題方式輸出，一般題庫題不要直接照抄原題；若原題明確標記為會考題，可以直接使用原題。`,
+    `非會考題先用題庫原題作為考點與難度參考，再重新生成同概念題目。`,
+    `每題附答案與詳細解析。`,
+    `產出格式：${outputLabel(spec.output)}。`,
+    ``,
+    `版型與排版：`,
+    `版型：${spec.styleLabel}`,
+    `排版：${spec.layoutLabel}`,
+    `字體：${spec.typographyLabel}`,
+    `Word 測驗卷請以此字體設定為準；標題與大題標可依階層加大，本文、題目、選項與解析以指定字級為基準。`,
+    ``,
+    `串接規則：`,
+    `請沿用 D:\\OneDrive\\文件\\製作題目\\question_bank_client.py。`,
+    `題庫 API：${spec.api}`,
+    `不要直接讀 SQLite。`,
+    `大量抓完整題目時，先用 questions() 取得 ID，再用 questions_by_id() 批次取得完整題目。`,
+    ``,
+    `補充要求：`,
+    notes
+  ].join("\n");
+  $("questionPromptOutput").value = prompt;
+  $("questionSearchSummary").textContent = `${spec.level} / ${spec.questionBankSubject} / ${spec.keyword || "未填關鍵字"} / ${spec.candidateCount} -> ${spec.totalCount} / ${spec.styleLabel} / ${spec.layoutLabel} / ${spec.typographyLabel}`;
+}
+
+async function copyQuestionPrompt() {
+  buildQuestionPrompt();
+  await navigator.clipboard.writeText($("questionPromptOutput").value);
+  toast("已複製出題指令");
+}
+
+async function makeQuestions() {
+  buildQuestionPrompt();
+  const spec = questionSpec();
+  try {
+    await navigator.clipboard.writeText($("questionPromptOutput").value);
+    $("questionSearchSummary").textContent = `已準備製作：${spec.level} / ${spec.questionBankSubject} / ${spec.keyword || "未填關鍵字"} / ${spec.styleLabel} / ${spec.layoutLabel} / ${spec.typographyLabel}；指令已複製，請貼給 Codex 開始出卷。`;
+    toast("製作題目指令已複製");
+  } catch {
+    $("questionSearchSummary").textContent = "已產生製作題目指令；瀏覽器未允許自動複製，請手動複製下方文字。";
+    toast("已產生指令，請手動複製");
+  }
+}
+
+function downloadQuestionSpec() {
+  buildQuestionPrompt();
+  const spec = questionSpec();
+  const blob = new Blob([JSON.stringify({ ...spec, prompt: $("questionPromptOutput").value }, null, 2)], {
+    type: "application/json;charset=utf-8"
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `出題需求_${cleanFilenamePart(spec.grade + spec.subject)}_${todayIso()}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function initHandoutBuilder() {
+  $("handoutGrade").value = $("grade").value;
+  renderHandoutSubjects();
+  buildHandoutPrompt();
+}
+
+function renderHandoutSubjects() {
+  const subjects = subjectsForGrade($("handoutGrade").value);
+  setSelectOptions("handoutSubject", subjects, $("subject").value);
+  renderHandoutBooks();
+}
+
+function renderHandoutBooks() {
+  const books = booksForGrade(currentHandoutSubject(), $("handoutGrade").value);
+  setSelectOptions("handoutBook", books, $("handoutBook").value);
+  renderHandoutChapters();
+}
+
+function renderHandoutChapters() {
+  const chapters = Object.keys(currentHandoutBook());
+  $("handoutChapter").innerHTML = chapters.map(chapter => `<option>${escapeHtml(chapter)}</option>`).join("");
+  renderHandoutSections();
+}
+
+function renderHandoutSections() {
+  const sections = Object.keys(currentHandoutChapter());
+  $("handoutSection").innerHTML = sections.map(section => `<option>${escapeHtml(section)}</option>`).join("");
+  renderHandoutTopics();
+}
+
+function renderHandoutTopics() {
+  handoutSelectedTopics.clear();
+  const topics = currentHandoutSection();
+  if (!topics.length) {
+    $("handoutTopicChoices").textContent = "這個節目前沒有知識點，會使用章節與節名安排講義。";
+    $("handoutTopicCount").textContent = "0";
+    buildHandoutPrompt();
+    return;
+  }
+  $("handoutTopicChoices").innerHTML = topics.map(topic => (
+    `<button class="path-chip selectable" type="button" data-handout-topic="${escapeHtml(topic)}">${escapeHtml(topic)}</button>`
+  )).join("");
+  $("handoutTopicCount").textContent = "0";
+  buildHandoutPrompt();
+}
+
+function currentHandoutSubject() {
+  return filenameCourseData[$("handoutSubject").value] || { books: {} };
+}
+
+function currentHandoutBook() {
+  return currentHandoutSubject().books?.[$("handoutBook").value] || {};
+}
+
+function currentHandoutChapter() {
+  return currentHandoutBook()[$("handoutChapter").value] || {};
+}
+
+function currentHandoutSection() {
+  return currentHandoutChapter()[$("handoutSection").value] || [];
+}
+
+function toggleHandoutTopic(topic, button) {
+  if (handoutSelectedTopics.has(topic)) {
+    handoutSelectedTopics.delete(topic);
+    button.classList.remove("selected");
+  } else {
+    handoutSelectedTopics.add(topic);
+    button.classList.add("selected");
+  }
+  $("handoutTopicCount").textContent = handoutSelectedTopics.size;
+  buildHandoutPrompt();
+}
+
+function handoutAudienceLabel(value) {
+  return {
+    student: "學生版",
+    teacher: "教師版",
+    both: "學生版與教師版各一份"
+  }[value] || value;
+}
+
+function handoutStyleLabel(value) {
+  return {
+    softGray: "灰階章節分隔版",
+    modulePack: "灰階講義模組包",
+    freshBlue: "清爽青藍細線版",
+    referenceBlack: "黑白參考書分隔線版",
+    referenceFormula: "黑白參考書＋LaTeX公式版"
+  }[value] || value;
+}
+
+function handoutStyleInstructions(value) {
+  const instructions = {
+    softGray: [
+      `套用灰階章節分隔版。`,
+      `章節使用左側符號、章節標題與右側水平線的分隔方式。`,
+      `整體以淡灰、黑灰、低對比為主，適合一般上課講義與黑白列印。`
+    ],
+    modulePack: [
+      `套用灰階講義模組包樣式。`,
+      `範例、解題步驟、隨堂演練、答案解析請用可複製模組呈現。`,
+      `模組標題、題號、作答空間與解析區塊需固定格式，方便之後複製延伸。`
+    ],
+    freshBlue: [
+      `套用清爽青藍細線版。`,
+      `使用小色標、章節編號、細水平線與淺底提示框，不使用大面積粗色條。`,
+      `版面保留大量白底與清楚留白，適合短講義、重點複習、題型整理與測驗卷前導講義。`
+    ],
+    referenceBlack: [
+      `套用黑白參考書分隔線版，正式講義不可出現樣式名稱、適用情境、視覺語言等版型說明表。`,
+      `頁面以黑白為主，章節標題下方使用細水平線，靠編號、粗體關鍵詞、表格與短提示框建立閱讀層次。`,
+      `採加厚內容密度，避免一頁只有少量文字；加入觀念脈絡、判讀流程、考點深化、常見錯誤、延伸比較與例題解析。`,
+      `頁尾使用「第 X 頁（共 Y 頁）」格式；公式整理表使用深灰表頭、淺灰首欄與細框線。`
+    ],
+    referenceFormula: [
+      `套用黑白參考書＋LaTeX公式版，正式講義不可出現樣式名稱、適用情境、視覺語言等版型說明表。`,
+      `頁面以黑白參考書分隔線版為基礎，章節標題下方使用細水平線，靠編號、粗體關鍵詞、表格與短提示框建立閱讀層次。`,
+      `採加厚內容密度，避免一頁只有少量文字；加入觀念脈絡、判讀流程、考點深化、常見錯誤、延伸比較與例題解析。`,
+      `頁尾使用「第 X 頁（共 Y 頁）」格式；公式整理表使用深灰表頭、淺灰首欄與細框線。`,
+      `正式 PDF 不能出現 sqrt(...)、v_esc、1/2 mv^2、(GM/r)^(1/2) 這類純文字公式；核心公式需正常呈現分式、根號、上下標、希臘字母、近似符號與比例符號。`,
+      `若 Word 原生公式轉 PDF 會跑版，請使用 D:\\OneDrive\\文件\\製作題目\\render_latex_formula.js，先將 LaTeX 公式渲染成圖片，再嵌入 Word。`,
+      `公式圖片需白底或透明底、黑色字、解析度清楚；插入後不得模糊、裁切、壓縮變形或超出欄寬。`,
+      `正文公式頁、公式整理表、範例解法頁、答案解析頁都要處理；表格中的公式欄也必須用 LaTeX 渲染或同等品質公式圖。`,
+      `大型公式不要把兩個以上擠在同一行；分式、根號、上下標並列時，拆成上下獨立公式行。`,
+      `每次修公式後，需重新轉 PDF 並檢查相關頁面 PNG，至少檢查正文公式頁、公式整理表、範例解法頁、答案解析頁。`
+    ]
+  };
+  return instructions[value] || instructions.softGray;
+}
+
+function handoutQuestionSourceLabel(value) {
+  return {
+    mixed: "題庫＋自創混合",
+    bank: "優先從題庫提取",
+    original: "自創題目"
+  }[value] || value;
+}
+
+function handoutSpec() {
+  const title = $("handoutTitleInput").value.trim() || `${$("handoutChapter").value}：${$("handoutSection").value}`;
+  return {
+    grade: $("handoutGrade").value,
+    subject: $("handoutSubject").value,
+    book: $("handoutBook").value,
+    chapter: $("handoutChapter").value,
+    section: $("handoutSection").value,
+    title,
+    audience: $("handoutAudience").value,
+    style: $("handoutStyle").value,
+    topics: Array.from(handoutSelectedTopics),
+    include: {
+      toc: $("handoutIncludeToc").checked,
+      concepts: $("handoutIncludeConcepts").checked,
+      examples: $("handoutIncludeExamples").checked,
+      practice: $("handoutIncludePractice").checked,
+      answers: $("handoutIncludeAnswers").checked,
+      teacherNotes: $("handoutIncludeTeacherNotes").checked
+    },
+    exampleCount: Number($("handoutExampleCount").value || 0),
+    practiceCount: Number($("handoutPracticeCount").value || 0),
+    questionCounts: {
+      calculation: Number($("handoutCalculationCount").value || 0),
+      concept: Number($("handoutConceptQuestionCount").value || 0),
+      thinking: Number($("handoutThinkingQuestionCount").value || 0)
+    },
+    questionSource: $("handoutQuestionSource").value,
+    questionCandidateCount: Number($("handoutQuestionCandidateCount").value || 0),
+    notes: $("handoutNotes").value.trim()
+  };
+}
+
+function setSelectToOption(selectId, preferred, fallbackIncludes = []) {
+  const select = $(selectId);
+  const options = [...select.options];
+  const exact = options.find(option => option.value === preferred || option.textContent === preferred);
+  const fuzzy = exact || options.find(option => fallbackIncludes.every(part => option.value.includes(part) || option.textContent.includes(part)));
+  if (fuzzy) select.value = fuzzy.value;
+  return Boolean(fuzzy);
+}
+
+function renderHandoutExamples() {
+  const container = $("handoutExampleChips");
+  if (!container) return;
+  if (!handoutExamples.length) {
+    container.innerHTML = `<span class="empty-inline">尚無講義範例，可先選好設定後新增。</span>`;
+    return;
+  }
+  container.innerHTML = handoutExamples.map(example => `
+    <span class="template-chip handout-example-chip">
+      <button class="chip" type="button" data-apply-handout-example="${escapeHtml(example.id)}">${escapeHtml(example.name || "未命名範例")}</button>
+      <button class="chip-delete" type="button" data-delete-handout-example="${escapeHtml(example.id)}" title="刪除範例">×</button>
+    </span>
+  `).join("");
+}
+
+function saveHandoutExamples() {
+  writeJson(STORAGE.handoutExamples, handoutExamples);
+  renderHandoutExamples();
+}
+
+function applyHandoutExample(exampleId) {
+  const example = handoutExamples.find(item => item.id === exampleId);
+  if (!example) return;
+
+  $("handoutGrade").value = example.grade || "高一";
+  renderHandoutSubjects();
+  setSelectToOption("handoutSubject", example.subject || "", [example.subject || ""]);
+  renderHandoutBooks();
+  setSelectToOption("handoutBook", example.book || "", []);
+  renderHandoutChapters();
+  setSelectToOption("handoutChapter", example.chapter || "", []);
+  renderHandoutSections();
+  setSelectToOption("handoutSection", example.section || "", []);
+  renderHandoutTopics();
+
+  $("handoutTitleInput").value = example.title || "";
+  $("handoutAudience").value = example.audience || "both";
+  $("handoutStyle").value = example.style || "softGray";
+  $("handoutExampleCount").value = example.exampleCount ?? 2;
+  $("handoutPracticeCount").value = example.practiceCount ?? 4;
+  $("handoutCalculationCount").value = example.questionCounts?.calculation ?? 5;
+  $("handoutConceptQuestionCount").value = example.questionCounts?.concept ?? 5;
+  $("handoutThinkingQuestionCount").value = example.questionCounts?.thinking ?? 5;
+  $("handoutQuestionSource").value = example.questionSource || "mixed";
+  $("handoutQuestionCandidateCount").value = example.questionCandidateCount ?? 30;
+  $("handoutIncludeToc").checked = example.include?.toc ?? true;
+  $("handoutIncludeConcepts").checked = example.include?.concepts ?? true;
+  $("handoutIncludeExamples").checked = example.include?.examples ?? true;
+  $("handoutIncludePractice").checked = example.include?.practice ?? true;
+  $("handoutIncludeAnswers").checked = example.include?.answers ?? true;
+  $("handoutIncludeTeacherNotes").checked = example.include?.teacherNotes ?? false;
+  $("handoutNotes").value = example.notes || "";
+
+  handoutSelectedTopics.clear();
+  (example.topics || []).forEach(topic => handoutSelectedTopics.add(topic));
+  document.querySelectorAll("[data-handout-topic]").forEach(button => {
+    button.classList.toggle("selected", handoutSelectedTopics.has(button.dataset.handoutTopic));
+  });
+  $("handoutTopicCount").textContent = handoutSelectedTopics.size;
+  buildHandoutPrompt();
+  toast(`已套用${example.name || "講義範例"}`);
+}
+
+function addCurrentHandoutExample() {
+  const spec = handoutSpec();
+  const name = spec.title || `${spec.grade}${spec.subject}${spec.section}` || "講義範例";
+  const example = {
+    ...spec,
+    id: `${Date.now()}`,
+    name: name.length > 24 ? `${name.slice(0, 24)}...` : name
+  };
+  handoutExamples.unshift(example);
+  saveHandoutExamples();
+  toast("已新增講義範例");
+}
+
+function deleteHandoutExample(exampleId) {
+  handoutExamples = handoutExamples.filter(item => item.id !== exampleId);
+  saveHandoutExamples();
+  toast("已刪除講義範例");
+}
+
+function buildHandoutPrompt() {
+  if (!$("handoutPromptOutput")) return;
+  const spec = handoutSpec();
+  const topicText = spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
+  const bankKeyword = [spec.chapter, spec.section, ...spec.topics].filter(Boolean).join(" ");
+  const questionSourceInstructions = {
+    original: [
+      `題目來源：自創題目。`,
+      `請依照講義內容與考試趨勢自行設計題目，不需要串接本機題庫。`
+    ],
+    bank: [
+      `題目來源：優先從題庫提取。`,
+      `請用本機題庫先抓 ${spec.questionCandidateCount} 題候選題，依本講義範圍篩選、改寫並整理進講義題組。`,
+      `若原題明確標記為會考題，可以直接使用原題。`,
+      `若題庫題目不足，請明確標示不足處並用自創題補足。`
+    ],
+    mixed: [
+      `題目來源：題庫＋自創混合。`,
+      `請用本機題庫先抓 ${spec.questionCandidateCount} 題候選題作為考點、難度與題型參考；一般題庫題需改寫、重組或補充自創題，若原題明確標記為會考題，可以直接使用原題。`
+    ]
+  }[spec.questionSource] || [];
+  const includeText = Object.entries({
+    toc: "目錄",
+    concepts: "定義、說明、定理、公式",
+    examples: "範例與解法",
+    practice: "科學素養題組",
+    answers: "答案解析",
+    teacherNotes: "教師備註"
+  }).filter(([key]) => spec.include[key]).map(([, label]) => label).join("、") || "依內容判斷";
+  const prompt = [
+    `講義生成背景：`,
+    HANDOUT_TEACHER_BACKGROUND,
+    ``,
+    `請依照同專案中已製作的 Word 講義範本，幫我生成「${spec.title}」上課講義。`,
+    ``,
+    `講義基本資料：`,
+    `年級：${spec.grade}`,
+    `科目：${spec.subject}`,
+    `課程 / 冊別：${spec.book}`,
+    `章節：${spec.chapter}`,
+    `節：${spec.section}`,
+    `知識點：${topicText}`,
+    `版本：${handoutAudienceLabel(spec.audience)}`,
+    `版型：${handoutStyleLabel(spec.style)}`,
+    `題目來源：${handoutQuestionSourceLabel(spec.questionSource)}`,
+    ``,
+    `內容結構：`,
+    `請包含：${includeText}`,
+    `每個小節請嚴格包含以下九個部分：`,
+    `1. 定義：提供精確嚴謹的學術定義。`,
+    `2. 說明：深入詳盡闡述，包含歷史脈絡、內容詳解、應用時機與技巧、延伸與比較，必要時使用表格。`,
+    `3. 定理：列出相關重要定理、適用範圍與限制。`,
+    `4. 公式：列出相關公式，並解釋每個符號的物理或生物意義、單位和使用注意事項。`,
+    `5. 範例與解法：${spec.exampleCount} 題。`,
+    `6. 隨堂演練：${spec.practiceCount} 題。`,
+    `7. 科學素養計算題：${spec.questionCounts.calculation} 題，重點在觀念應用而非複雜計算，並附詳解。`,
+    `8. 科學素養觀念理解題：${spec.questionCounts.concept} 題，可為選擇、是非或簡答，並附詳解。`,
+    `9. 科學素養思考題：${spec.questionCounts.thinking} 題，採情境式或開放性問題，訓練邏輯推理與批判性思考，並附詳解。`,
+    `若有答案解析，請可清楚區分學生可見內容與教師用內容。`,
+    ``,
+    `題庫使用規則：`,
+    ...questionSourceInstructions,
+    spec.questionSource === "original" ? "" : `題庫搜尋關鍵字：${bankKeyword}`,
+    spec.questionSource === "original" ? "" : `題庫 API subject：${questionBankSubjectName(spec.grade, spec.subject)}`,
+    spec.questionSource === "original" ? "" : `level：${inferQuestionLevelKey(spec.grade)}`,
+    spec.questionSource === "original" ? "" : `請沿用 D:\\OneDrive\\文件\\製作題目\\question_bank_client.py。`,
+    spec.questionSource === "original" ? "" : `題庫 API：http://127.0.0.1:8787`,
+    spec.questionSource === "original" ? "" : `不要直接讀 SQLite；大量抓完整題目時，先用 questions() 取得 ID，再用 questions_by_id() 批次取得完整題目。`,
+    ``,
+    `排版要求：`,
+    ...handoutStyleInstructions(spec.style),
+    `範例、解題步驟、隨堂演練、答案解析請用可複製模組呈現。`,
+    `需要目錄時，請使用 Word 可更新的目錄欄位。`,
+    ``,
+    `補充文案或要求：`,
+    spec.notes || "無；請依課程範圍自行整理成適合上課使用的講義。"
+  ].join("\n");
+  $("handoutPromptOutput").value = prompt;
+  $("handoutSummary").textContent = `${spec.grade}${spec.subject} / ${spec.book} / ${spec.chapter} ${spec.section} / ${handoutStyleLabel(spec.style)} / ${handoutAudienceLabel(spec.audience)}`;
+}
+
+async function copyHandoutPrompt() {
+  buildHandoutPrompt();
+  await navigator.clipboard.writeText($("handoutPromptOutput").value);
+  toast("已複製講義指令");
+}
+
+function downloadHandoutSpec() {
+  buildHandoutPrompt();
+  const spec = handoutSpec();
+  const blob = new Blob([JSON.stringify({ ...spec, prompt: $("handoutPromptOutput").value }, null, 2)], {
+    type: "application/json;charset=utf-8"
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `講義需求_${cleanFilenamePart(spec.grade + spec.subject)}_${todayIso()}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function renderFilenameSubjects() {
   const subjects = Object.keys(filenameCourseData);
   $("filenameSubject").innerHTML = subjects.map(subject => `<option>${escapeHtml(subject)}</option>`).join("");
@@ -812,7 +1579,7 @@ function renderFilenameSubjects() {
 }
 
 function renderFilenameCourses() {
-  const books = Object.keys(currentFilenameSubject().books || {});
+  const books = sortCourseBooks(Object.keys(currentFilenameSubject().books || {}));
   $("filenameCourse").innerHTML = books.map(book => `<option>${escapeHtml(book)}</option>`).join("");
   renderFilenameChapters();
   syncFilenameCourseAlias();
@@ -870,6 +1637,7 @@ function buildHandoutFilename() {
     chapterCode($("filenameChapter").value),
     $("filenameUnit").value,
     normalizeSequencedName($("filenameDocName").value),
+    $("filenameFormatSuffix").value,
     $("filenameAudience").value,
     $("filenameStatus").value
   ].map(cleanFilenamePart).filter(Boolean).join("_") || "未命名";
@@ -1018,7 +1786,7 @@ function currentCourseReviewSubject() {
 }
 
 function renderCourseReviewBooks() {
-  const books = Object.keys(currentCourseReviewSubject().books || {});
+  const books = sortCourseBooks(Object.keys(currentCourseReviewSubject().books || {}));
   $("dataBookSelect").innerHTML = books.map(book => `<option>${escapeHtml(book)}</option>`).join("");
 }
 
@@ -1353,6 +2121,15 @@ function copyCourseReviewPath() {
   toast("已複製目前路徑");
 }
 
+async function copyOfflinePath(text) {
+  await navigator.clipboard.writeText(text);
+  toast("已複製啟動檔路徑");
+}
+
+function openOfflineUrl(url) {
+  window.open(url, "_blank", "noopener");
+}
+
 function exportCourseReviewSubjectCsv() {
   const subject = $("dataSubjectSelect").value;
   const rows = [["科目", "冊別/教材", "章", "節", "小重點"]];
@@ -1399,8 +2176,12 @@ function syncCourseReviewToTools() {
   if (filenameCourseData[subject]) {
     $("progressSubject").value = subject;
     $("filenameSubject").value = subject;
+    $("questionSubject").value = subject;
+    $("handoutSubject").value = subject;
     renderProgressBooks();
     renderFilenameCourses();
+    renderQuestionBooks();
+    renderHandoutBooks();
   }
   if (book) {
     if ([...$("progressBook").options].some(option => option.value === book)) {
@@ -1412,6 +2193,16 @@ function syncCourseReviewToTools() {
       renderFilenameChapters();
       syncFilenameCourseAlias();
       updateFilenamePreview();
+    }
+    if ([...$("questionBook").options].some(option => option.value === book)) {
+      $("questionBook").value = book;
+      renderQuestionChapters();
+      buildQuestionPrompt();
+    }
+    if ([...$("handoutBook").options].some(option => option.value === book)) {
+      $("handoutBook").value = book;
+      renderHandoutChapters();
+      buildHandoutPrompt();
     }
   }
 }
@@ -1480,6 +2271,72 @@ function bindEvents() {
     updateFilenamePreview();
   });
   $("copyFilenameBtn").addEventListener("click", copyFilename);
+  $("questionGrade").addEventListener("change", () => {
+    renderQuestionSubjects();
+    buildQuestionPrompt();
+  });
+  $("questionSubject").addEventListener("change", () => {
+    renderQuestionBooks();
+    buildQuestionPrompt();
+  });
+  $("questionBook").addEventListener("change", () => {
+    renderQuestionChapters();
+    buildQuestionPrompt();
+  });
+  $("questionChapter").addEventListener("change", () => {
+    renderQuestionSections();
+    buildQuestionPrompt();
+  });
+  $("questionSection").addEventListener("change", () => {
+    renderQuestionTopics();
+    buildQuestionPrompt();
+  });
+  [
+    "questionOutput", "questionKeyword", "questionCandidateCount", "questionTotalCount", "questionType",
+    "questionBasicCount", "questionMiddleCount", "questionChallengeCount",
+    "questionStyle", "questionLayout", "questionTypography", "questionNotes"
+  ].forEach(id => {
+    $(id).addEventListener("input", buildQuestionPrompt);
+    $(id).addEventListener("change", buildQuestionPrompt);
+  });
+  $("makeQuestionsBtn").addEventListener("click", makeQuestions);
+  $("buildQuestionPromptBtn").addEventListener("click", buildQuestionPrompt);
+  $("copyQuestionPromptBtn").addEventListener("click", copyQuestionPrompt);
+  $("downloadQuestionSpecBtn").addEventListener("click", downloadQuestionSpec);
+  $("handoutGrade").addEventListener("change", () => {
+    renderHandoutSubjects();
+    buildHandoutPrompt();
+  });
+  $("handoutSubject").addEventListener("change", () => {
+    renderHandoutBooks();
+    buildHandoutPrompt();
+  });
+  $("handoutBook").addEventListener("change", () => {
+    renderHandoutChapters();
+    buildHandoutPrompt();
+  });
+  $("handoutChapter").addEventListener("change", () => {
+    renderHandoutSections();
+    buildHandoutPrompt();
+  });
+  $("handoutSection").addEventListener("change", () => {
+    renderHandoutTopics();
+    buildHandoutPrompt();
+  });
+  [
+    "handoutAudience", "handoutTitleInput", "handoutExampleCount", "handoutPracticeCount",
+    "handoutCalculationCount", "handoutConceptQuestionCount", "handoutThinkingQuestionCount",
+    "handoutQuestionSource", "handoutQuestionCandidateCount",
+    "handoutStyle", "handoutIncludeToc", "handoutIncludeConcepts", "handoutIncludeExamples",
+    "handoutIncludePractice", "handoutIncludeAnswers", "handoutIncludeTeacherNotes", "handoutNotes"
+  ].forEach(id => {
+    $(id).addEventListener("input", buildHandoutPrompt);
+    $(id).addEventListener("change", buildHandoutPrompt);
+  });
+  $("buildHandoutPromptBtn").addEventListener("click", buildHandoutPrompt);
+  $("copyHandoutPromptBtn").addEventListener("click", copyHandoutPrompt);
+  $("downloadHandoutSpecBtn").addEventListener("click", downloadHandoutSpec);
+  $("saveHandoutExampleBtn").addEventListener("click", addCurrentHandoutExample);
   $("dataSubjectSelect").addEventListener("change", () => {
     renderCourseReviewBooks();
     renderCourseReviewCurrent();
@@ -1518,6 +2375,10 @@ function bindEvents() {
     if (target.dataset.cacheProgressSearch) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressSearch));
     if (target.dataset.homework) phraseAppend("homework", target.dataset.homework);
     if (target.dataset.quiz) phraseAppend("quiz", target.dataset.quiz);
+    if (target.dataset.questionTopic) toggleQuestionTopic(target.dataset.questionTopic, target);
+    if (target.dataset.handoutTopic) toggleHandoutTopic(target.dataset.handoutTopic, target);
+    if (target.dataset.applyHandoutExample) applyHandoutExample(target.dataset.applyHandoutExample);
+    if (target.dataset.deleteHandoutExample && confirm("確定刪除這個講義範例嗎？")) deleteHandoutExample(target.dataset.deleteHandoutExample);
     if (target.dataset.template) applyTemplate(target.dataset.template);
     if (target.dataset.deleteTemplate && confirm("確定刪除這個班級模板嗎？")) deleteTemplate(target.dataset.deleteTemplate);
     if (target.dataset.removeProgressCache) removeProgressCacheItem(target.dataset.removeProgressCache);
@@ -1538,6 +2399,8 @@ function bindEvents() {
     }
     if (target.dataset.removeCourseFix) removeCourseFix(target.dataset.removeCourseFix);
     if (target.dataset.useProgressPath) useCourseReviewPath(decodeURIComponent(target.dataset.useProgressPath));
+    if (target.dataset.copyOffline) copyOfflinePath(target.dataset.copyOffline);
+    if (target.dataset.openOffline) openOfflineUrl(target.dataset.openOffline);
   });
 
   document.body.addEventListener("input", event => {
@@ -1556,14 +2419,27 @@ function bindEvents() {
     if (filenameCourseData[$("subject").value]) {
       $("progressSubject").value = $("subject").value;
       renderProgressBooks();
+      $("questionSubject").value = $("subject").value;
+      renderQuestionBooks();
+      $("handoutSubject").value = $("subject").value;
+      renderHandoutBooks();
       $("dataSubjectSelect").value = $("subject").value;
       renderCourseReviewBooks();
       renderCourseReviewCurrent();
     }
   });
 
+  $("grade").addEventListener("change", () => {
+    renderProgressSubjects();
+    $("questionGrade").value = $("grade").value;
+    renderQuestionSubjects();
+    $("handoutGrade").value = $("grade").value;
+    renderHandoutSubjects();
+    saveDraft();
+  });
+
   [
-    "filenameExt", "filenameDate", "filenameUnit", "filenameDocName", "filenameAudience", "filenameStatus",
+    "filenameExt", "filenameDate", "filenameUnit", "filenameDocName", "filenameFormatSuffix", "filenameAudience", "filenameStatus",
     "filenameCourseAlias", "mockYear", "mockExamType", "mockName", "termSemester", "termSchool",
     "termGrade", "termExam", "otherTopic", "otherContent", "otherNote"
   ].forEach(id => {
@@ -1578,6 +2454,7 @@ updatePreviewSizeClass();
 renderTemplates();
 renderProgressCache();
 renderHomeworkPhrases();
+renderHandoutExamples();
 renderArchives();
 renderHistoryPicker();
 initFilenameTool();

@@ -16,7 +16,10 @@
       <nav class="view-tabs" aria-label="系統功能">
         <button class="tab-btn active" type="button" data-view-tab="progress">進度</button>
         <button class="tab-btn" type="button" data-view-tab="filename">檔名</button>
+        <button class="tab-btn" type="button" data-view-tab="question">出題</button>
+        <button class="tab-btn" type="button" data-view-tab="handout">講義</button>
         <button class="tab-btn" type="button" data-view-tab="data">資料</button>
+        <button class="tab-btn" type="button" data-view-tab="offline">離線</button>
       </nav>
     </div>
   </header>
@@ -290,6 +293,20 @@
               <option>完稿</option>
             </select>
           </label>
+          <label>
+            <span>題目格式後綴</span>
+            <select id="filenameFormatSuffix">
+              <option value="">不加入</option>
+              <option>標準快考版</option>
+              <option>灰階列印版</option>
+              <option>寬鬆作答版</option>
+              <option>緊湊省紙版</option>
+              <option>雙欄選擇題版</option>
+              <option>正式考卷版</option>
+              <option>教師備課版</option>
+              <option>錯題訂正版</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -368,6 +385,318 @@
         </div>
         <button id="copyFilenameBtn" type="button">複製檔名</button>
       </div>
+    </section>
+
+    <section class="panel question-panel hidden-view" data-workspace-view="question" aria-labelledby="questionTitle">
+      <div class="step-head">
+        <span class="step-index">題</span>
+        <div>
+          <h2 id="questionTitle">題庫仿題出卷</h2>
+          <p>從課程資料快速選範圍，產生可交給 Codex 的出題指令。</p>
+        </div>
+      </div>
+
+      <div class="field-grid three">
+        <label>
+          <span>年級</span>
+          <select id="questionGrade">
+            <option>小一</option><option>小二</option><option>小三</option><option>小四</option><option>小五</option><option>小六</option>
+            <option>國一</option><option>國二</option><option>國三</option><option>高一</option><option>高二</option><option>高三</option>
+          </select>
+        </label>
+        <label>
+          <span>科目</span>
+          <select id="questionSubject"></select>
+        </label>
+        <label>
+          <span>產出型態</span>
+          <select id="questionOutput">
+            <option value="word">Word 測驗卷</option>
+            <option value="pdf">Word + PDF</option>
+            <option value="obsidian">Obsidian Markdown</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-grid two">
+        <label>
+          <span>課程 / 冊別</span>
+          <select id="questionBook"></select>
+        </label>
+        <label>
+          <span>章節</span>
+          <select id="questionChapter"></select>
+        </label>
+      </div>
+
+      <div class="field-grid two">
+        <label>
+          <span>節</span>
+          <select id="questionSection"></select>
+        </label>
+        <label>
+          <span>搜尋補充關鍵字</span>
+          <input id="questionKeyword" placeholder="可空白，例：離子積常數、板塊">
+        </label>
+      </div>
+
+      <div class="question-topic-box">
+        <div class="section-head">
+          <div>
+            <h2>知識點</h2>
+            <p>可多選；若不選，會使用目前章節與節名當搜尋範圍。</p>
+          </div>
+          <span id="questionTopicCount" class="badge">0</span>
+        </div>
+        <div id="questionTopicChoices" class="topic-list">課程資料載入中...</div>
+      </div>
+
+      <div class="field-grid three">
+        <label>
+          <span>先抓候選題</span>
+          <input id="questionCandidateCount" type="number" min="5" max="100" value="30">
+        </label>
+        <label>
+          <span>成卷題數</span>
+          <input id="questionTotalCount" type="number" min="1" max="60" value="20">
+        </label>
+        <label>
+          <span>題型</span>
+          <select id="questionType">
+            <option>隨堂測驗</option>
+            <option>課後練習</option>
+            <option>段考複習</option>
+            <option>錯題再練</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-grid three compact-fields">
+        <label>
+          <span>基礎題</span>
+          <input id="questionBasicCount" type="number" min="0" max="60" value="10">
+        </label>
+        <label>
+          <span>中等題</span>
+          <input id="questionMiddleCount" type="number" min="0" max="60" value="6">
+        </label>
+        <label>
+          <span>挑戰題</span>
+          <input id="questionChallengeCount" type="number" min="0" max="60" value="4">
+        </label>
+      </div>
+
+      <div class="field-grid three compact-fields">
+        <label>
+          <span>版型</span>
+          <select id="questionStyle">
+            <option value="standard">標準快考版</option>
+            <option value="gray">灰階列印版</option>
+            <option value="reference">參考書精緻版</option>
+            <option value="exam">段考模擬版</option>
+            <option value="correction">錯題訂正版</option>
+            <option value="teacher">教師備課版</option>
+          </select>
+        </label>
+        <label>
+          <span>排版</span>
+          <select id="questionLayout">
+            <option value="spacious">寬鬆作答版</option>
+            <option value="compact">緊湊省紙版</option>
+            <option value="twoColumn">雙欄選擇題版</option>
+            <option value="card">單題卡片版</option>
+            <option value="formal">正式考卷版</option>
+            <option value="separateAnswers">答案分離版</option>
+            <option value="bw">黑白影印版</option>
+          </select>
+        </label>
+        <label>
+          <span>字體設定</span>
+          <select id="questionTypography">
+            <option value="kai12">標楷體 12 pt</option>
+            <option value="kai11">標楷體 11 pt</option>
+            <option value="jhenghei12">微軟正黑體 12 pt</option>
+            <option value="jhenghei11">微軟正黑體 11 pt</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="full-field">
+        <span>補充要求</span>
+        <textarea id="questionNotes" rows="3" placeholder="例：仿題不要照抄原題；每題都要附學生看得懂的解析；公式請盡量整理成標準格式。"></textarea>
+      </label>
+
+      <div class="toolbar question-actions">
+        <button id="makeQuestionsBtn" class="primary-action" type="button">製作題目</button>
+        <button id="buildQuestionPromptBtn" type="button">產生出題指令</button>
+        <button id="copyQuestionPromptBtn" class="secondary" type="button">複製指令</button>
+        <button id="downloadQuestionSpecBtn" class="secondary" type="button">下載需求 JSON</button>
+      </div>
+
+      <div class="filename-result question-summary">
+        <div>
+          <span>題庫搜尋摘要</span>
+          <output id="questionSearchSummary">尚未產生。</output>
+        </div>
+      </div>
+
+      <label class="full-field">
+        <span>Codex 出題指令</span>
+        <textarea id="questionPromptOutput" rows="16" readonly placeholder="選好範圍後按「產生出題指令」。"></textarea>
+      </label>
+    </section>
+
+    <section class="panel handout-panel hidden-view" data-workspace-view="handout" aria-labelledby="handoutTitle">
+      <div class="step-head">
+        <span class="step-index">講</span>
+        <div>
+          <h2 id="handoutTitle">講義模組製作</h2>
+          <p>從課程資料選範圍，產生可交給 Codex 的講義製作指令。</p>
+        </div>
+      </div>
+
+      <div class="field-grid three">
+        <label>
+          <span>年級</span>
+          <select id="handoutGrade">
+            <option>小一</option><option>小二</option><option>小三</option><option>小四</option><option>小五</option><option>小六</option>
+            <option>國一</option><option>國二</option><option>國三</option><option>高一</option><option>高二</option><option>高三</option>
+          </select>
+        </label>
+        <label>
+          <span>科目</span>
+          <select id="handoutSubject"></select>
+        </label>
+        <label>
+          <span>版本</span>
+          <select id="handoutAudience">
+            <option value="student">學生版</option>
+            <option value="teacher">教師版</option>
+            <option value="both">學生版＋教師版</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-grid two">
+        <label>
+          <span>課程 / 冊別</span>
+          <select id="handoutBook"></select>
+        </label>
+        <label>
+          <span>章節</span>
+          <select id="handoutChapter"></select>
+        </label>
+      </div>
+
+      <div class="field-grid two">
+        <label>
+          <span>節</span>
+          <select id="handoutSection"></select>
+        </label>
+        <label>
+          <span>講義標題</span>
+          <input id="handoutTitleInput" placeholder="可空白，會自動用章節與節名">
+        </label>
+      </div>
+
+      <div class="template-row">
+        <button id="saveHandoutExampleBtn" class="secondary" type="button">新增目前設定為範例</button>
+      </div>
+      <div id="handoutExampleChips" class="handout-example-list" aria-label="講義範例"></div>
+
+      <div class="question-topic-box">
+        <div class="section-head">
+          <div>
+            <h2>講義知識點</h2>
+            <p>可多選；若不選，會使用章節與節名安排內容。</p>
+          </div>
+          <span id="handoutTopicCount" class="badge">0</span>
+        </div>
+        <div id="handoutTopicChoices" class="topic-list">課程資料載入中...</div>
+      </div>
+
+      <div class="field-grid three compact-fields">
+        <label>
+          <span>範例數</span>
+          <input id="handoutExampleCount" type="number" min="0" max="12" value="2">
+        </label>
+        <label>
+          <span>隨堂演練數</span>
+          <input id="handoutPracticeCount" type="number" min="0" max="20" value="4">
+        </label>
+        <label>
+          <span>講義風格</span>
+          <select id="handoutStyle">
+            <option value="softGray">灰階章節分隔</option>
+            <option value="modulePack">灰階模組包</option>
+            <option value="freshBlue">清爽青藍細線</option>
+            <option value="referenceBlack">黑白參考書分隔線</option>
+            <option value="referenceFormula">黑白參考書＋LaTeX公式</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="field-grid three compact-fields">
+        <label>
+          <span>科學素養計算題</span>
+          <input id="handoutCalculationCount" type="number" min="0" max="30" value="5">
+        </label>
+        <label>
+          <span>科學素養觀念題</span>
+          <input id="handoutConceptQuestionCount" type="number" min="0" max="30" value="5">
+        </label>
+        <label>
+          <span>科學素養思考題</span>
+          <input id="handoutThinkingQuestionCount" type="number" min="0" max="30" value="5">
+        </label>
+      </div>
+
+      <div class="field-grid two compact-fields">
+        <label>
+          <span>題目來源</span>
+          <select id="handoutQuestionSource">
+            <option value="mixed">題庫＋自創混合</option>
+            <option value="bank">優先從題庫提取</option>
+            <option value="original">自創題目</option>
+          </select>
+        </label>
+        <label>
+          <span>題庫候選題</span>
+          <input id="handoutQuestionCandidateCount" type="number" min="0" max="120" value="30">
+        </label>
+      </div>
+
+      <div class="check-grid">
+        <label class="checkline"><input id="handoutIncludeToc" type="checkbox" checked><span>加入目錄</span></label>
+        <label class="checkline"><input id="handoutIncludeConcepts" type="checkbox" checked><span>定義、說明、定理、公式</span></label>
+        <label class="checkline"><input id="handoutIncludeExamples" type="checkbox" checked><span>範例與解法</span></label>
+        <label class="checkline"><input id="handoutIncludePractice" type="checkbox" checked><span>科學素養題組</span></label>
+        <label class="checkline"><input id="handoutIncludeAnswers" type="checkbox" checked><span>答案解析</span></label>
+        <label class="checkline"><input id="handoutIncludeTeacherNotes" type="checkbox"><span>教師備註</span></label>
+      </div>
+
+      <label class="full-field">
+        <span>文案或補充要求</span>
+        <textarea id="handoutNotes" rows="5" placeholder="可貼課堂文案、範例題、學生常錯點、作業要求；若空白，Codex 會依範圍規劃講義。"></textarea>
+      </label>
+
+      <div class="toolbar question-actions">
+        <button id="buildHandoutPromptBtn" class="primary-action" type="button">產生講義指令</button>
+        <button id="copyHandoutPromptBtn" class="secondary" type="button">複製指令</button>
+        <button id="downloadHandoutSpecBtn" class="secondary" type="button">下載需求 JSON</button>
+      </div>
+
+      <div class="filename-result question-summary">
+        <div>
+          <span>講義需求摘要</span>
+          <output id="handoutSummary">尚未產生。</output>
+        </div>
+      </div>
+
+      <label class="full-field">
+        <span>Codex 講義製作指令</span>
+        <textarea id="handoutPromptOutput" rows="18" readonly placeholder="選好範圍後按「產生講義指令」。"></textarea>
+      </label>
     </section>
 
     <section class="panel archive-panel" data-workspace-view="progress" aria-labelledby="archiveTitle">
@@ -511,6 +840,73 @@
           </div>
           <div id="dataOutline" class="outline"></div>
         </div>
+      </div>
+    </section>
+
+    <section class="panel offline-panel hidden-view" data-workspace-view="offline" aria-labelledby="offlineTitle">
+      <div class="step-head">
+        <span class="step-index">離</span>
+        <div>
+          <h2 id="offlineTitle">USB 離線入口</h2>
+          <p>集中管理離線出卷與離線上課進度系統。先雙擊啟動檔，再開啟對應頁面。</p>
+        </div>
+      </div>
+
+      <div class="offline-grid">
+        <article class="offline-card">
+          <div>
+            <h3>離線原題出卷系統</h3>
+            <p>直接抓取本機題庫原題生成 Word，不做仿題。適合 USB 攜帶使用。</p>
+          </div>
+          <dl class="offline-list">
+            <div>
+              <dt>啟動檔</dt>
+              <dd>H:\啟動離線出卷系統.bat</dd>
+            </div>
+            <div>
+              <dt>網址</dt>
+              <dd>http://127.0.0.1:8799/</dd>
+            </div>
+            <div>
+              <dt>輸出資料夾</dt>
+              <dd>H:\question_tool_portable\exports</dd>
+            </div>
+          </dl>
+          <div class="template-row">
+            <button type="button" data-copy-offline="H:\啟動離線出卷系統.bat">複製啟動檔路徑</button>
+            <button class="secondary" type="button" data-open-offline="http://127.0.0.1:8799/">開啟頁面</button>
+          </div>
+        </article>
+
+        <article class="offline-card">
+          <div>
+            <h3>離線上課與檔名系統</h3>
+            <p>USB 版進度、檔名、出題指令與講義指令入口，供沒有 OneDrive 專案資料夾時使用。</p>
+          </div>
+          <dl class="offline-list">
+            <div>
+              <dt>啟動檔</dt>
+              <dd>H:\啟動上課進度與檔名系統.bat</dd>
+            </div>
+            <div>
+              <dt>網址</dt>
+              <dd>http://127.0.0.1:8765/</dd>
+            </div>
+            <div>
+              <dt>系統資料夾</dt>
+              <dd>H:\question_tool_portable\offline_course_system</dd>
+            </div>
+          </dl>
+          <div class="template-row">
+            <button type="button" data-copy-offline="H:\啟動上課進度與檔名系統.bat">複製啟動檔路徑</button>
+            <button class="secondary" type="button" data-open-offline="http://127.0.0.1:8765/">開啟頁面</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="offline-note">
+        <strong>使用順序</strong>
+        <p>如果網頁打不開，先到 USB 根目錄雙擊對應的啟動檔。Windows 瀏覽器不允許網頁直接執行 .bat，因此這裡提供路徑複製與網址入口。</p>
       </div>
     </section>
   </main>
