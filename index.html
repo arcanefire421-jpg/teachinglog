@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260802-production-ui">
 </head>
 <body>
   <header class="app-header">
@@ -15,11 +15,8 @@
     <div class="header-actions">
       <nav class="view-tabs" aria-label="系統功能">
         <button class="tab-btn active" type="button" data-view-tab="progress">進度</button>
-        <button class="tab-btn" type="button" data-view-tab="filename">檔名</button>
-        <button class="tab-btn" type="button" data-view-tab="question">出題</button>
-        <button class="tab-btn" type="button" data-view-tab="handout">講義</button>
-        <button class="tab-btn" type="button" data-view-tab="data">資料</button>
-        <button class="tab-btn" type="button" data-view-tab="offline">離線</button>
+        <button class="tab-btn" type="button" data-view-tab="production">製作</button>
+        <button class="tab-btn" type="button" data-view-tab="data" data-view-group="data,offline">資料</button>
       </nav>
     </div>
   </header>
@@ -219,12 +216,103 @@
       <article id="preview" class="preview" aria-live="polite">尚未產生日誌。</article>
     </section>
 
-    <section id="filenamePanel" class="panel filename-panel hidden-view" data-workspace-view="filename" aria-labelledby="filenameTitle">
+    <section class="panel production-scope-panel hidden-view" data-workspace-view="production" aria-labelledby="productionTitle">
+      <div class="step-head">
+        <span class="step-index">製</span>
+        <div>
+          <h2 id="productionTitle">製作中心</h2>
+          <p>先選一次範圍，再決定要輸出檔名、題目或講義。</p>
+        </div>
+      </div>
+
+      <section class="form-section" aria-labelledby="sharedScopeTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="sharedScopeTitle">共用範圍</h2>
+            <p>這裡會同步套用到檔名、題目與講義。</p>
+          </div>
+        </div>
+        <div class="field-grid three">
+          <label>
+            <span>年級</span>
+            <select id="sharedGrade">
+              <option>小一</option><option>小二</option><option>小三</option><option>小四</option><option>小五</option><option>小六</option>
+              <option>國一</option><option>國二</option><option>國三</option><option>高一</option><option>高二</option><option>高三</option>
+            </select>
+          </label>
+          <label>
+            <span>科目</span>
+            <select id="sharedSubject"></select>
+          </label>
+          <label>
+            <span>課程 / 冊別</span>
+            <select id="sharedBook"></select>
+          </label>
+        </div>
+        <div class="field-grid three">
+          <label>
+            <span>章節</span>
+            <select id="sharedChapter"></select>
+          </label>
+          <label>
+            <span>節 / 單元</span>
+            <select id="sharedSection"></select>
+          </label>
+          <label>
+            <span>搜尋補充關鍵字</span>
+            <input id="sharedKeyword" placeholder="可空白，例：離子積常數、板塊">
+          </label>
+        </div>
+        <div class="question-topic-box shared-topic-box">
+          <div class="section-head">
+            <div>
+              <h2>小重點 / 知識點</h2>
+              <p>可多選；會同步給題目與講義使用。</p>
+            </div>
+            <span id="sharedTopicCount" class="badge">0</span>
+          </div>
+          <div id="sharedTopicChoices" class="topic-list">課程資料載入中...</div>
+        </div>
+      </section>
+
+      <section class="form-section production-output-section" aria-labelledby="productionOutputTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="productionOutputTitle">要產生什麼</h2>
+            <p>勾選後，下方只會顯示對應的設定。</p>
+          </div>
+        </div>
+        <div class="production-card-grid">
+          <label class="production-choice-card">
+            <input id="batchOutputFilename" type="checkbox">
+            <strong>檔名</strong>
+            <span>產生規範一致的 Word、PDF 或講義檔名。</span>
+          </label>
+          <label class="production-choice-card">
+            <input id="batchOutputQuestion" type="checkbox" checked>
+            <strong>題目指令</strong>
+            <span>用本機題庫原題或 AI 仿題製作測驗。</span>
+          </label>
+          <label class="production-choice-card">
+            <input id="batchOutputHandout" type="checkbox">
+            <strong>講義指令</strong>
+            <span>依共用範圍產生上課講義需求。</span>
+          </label>
+        </div>
+      </section>
+    </section>
+
+    <section id="filenamePanel" class="panel filename-panel hidden-view" data-workspace-view="production" data-production-task="filename" aria-labelledby="filenameTitle">
+      <div class="inner-switch" aria-label="製作工具">
+        <button class="tab-btn" type="button" data-view-tab="filename">建立檔名</button>
+        <button class="tab-btn" type="button" data-view-tab="question">製作題目</button>
+        <button class="tab-btn" type="button" data-view-tab="handout">製作講義</button>
+      </div>
       <div class="step-head">
         <span class="step-index">檔</span>
         <div>
-          <h2 id="filenameTitle">快速製作檔名</h2>
-          <p>可直接帶入既有科目、冊別與章節資料。</p>
+          <h2 id="filenameTitle">檔名設定</h2>
+          <p>只設定檔名格式，共用範圍已由上方帶入。</p>
         </div>
       </div>
 
@@ -387,144 +475,207 @@
       </div>
     </section>
 
-    <section class="panel question-panel hidden-view" data-workspace-view="question" aria-labelledby="questionTitle">
+    <section class="panel question-panel hidden-view" data-workspace-view="production" data-production-task="question" aria-labelledby="questionTitle">
+      <div class="inner-switch" aria-label="製作工具">
+        <button class="tab-btn" type="button" data-view-tab="filename">建立檔名</button>
+        <button class="tab-btn" type="button" data-view-tab="question">製作題目</button>
+        <button class="tab-btn" type="button" data-view-tab="handout">製作講義</button>
+      </div>
       <div class="step-head">
         <span class="step-index">題</span>
         <div>
-          <h2 id="questionTitle">題庫仿題出卷</h2>
-          <p>從課程資料快速選範圍，產生可交給 Codex 的出題指令。</p>
+          <h2 id="questionTitle">題目設定</h2>
+          <p>設定題目來源、題數、難度與測驗卷輸出。</p>
         </div>
       </div>
 
-      <div class="field-grid three">
-        <label>
-          <span>年級</span>
-          <select id="questionGrade">
-            <option>小一</option><option>小二</option><option>小三</option><option>小四</option><option>小五</option><option>小六</option>
-            <option>國一</option><option>國二</option><option>國三</option><option>高一</option><option>高二</option><option>高三</option>
-          </select>
-        </label>
-        <label>
-          <span>科目</span>
-          <select id="questionSubject"></select>
-        </label>
-        <label>
-          <span>產出型態</span>
-          <select id="questionOutput">
-            <option value="word">Word 測驗卷</option>
-            <option value="pdf">Word + PDF</option>
-            <option value="obsidian">Obsidian Markdown</option>
-          </select>
-        </label>
-      </div>
+      <div class="question-layout">
+        <div class="question-form-stack">
+          <section class="form-section" aria-labelledby="questionScopeTitle">
+            <div class="section-head compact">
+              <div>
+                <h2 id="questionScopeTitle">範圍</h2>
+                <p>先決定年級、科目與課程位置。</p>
+              </div>
+            </div>
+            <div class="field-grid three">
+              <label>
+                <span>年級</span>
+                <select id="questionGrade">
+                  <option>小一</option><option>小二</option><option>小三</option><option>小四</option><option>小五</option><option>小六</option>
+                  <option>國一</option><option>國二</option><option>國三</option><option>高一</option><option>高二</option><option>高三</option>
+                </select>
+              </label>
+              <label>
+                <span>科目</span>
+                <select id="questionSubject"></select>
+              </label>
+              <label>
+                <span>課程 / 冊別</span>
+                <select id="questionBook"></select>
+              </label>
+            </div>
+            <div class="field-grid two">
+              <label>
+                <span>章節</span>
+                <select id="questionChapter"></select>
+              </label>
+              <label>
+                <span>節</span>
+                <select id="questionSection"></select>
+              </label>
+            </div>
+            <label class="full-field">
+              <span>搜尋補充關鍵字</span>
+              <input id="questionKeyword" placeholder="可空白，例：離子積常數、板塊">
+            </label>
 
-      <div class="field-grid two">
-        <label>
-          <span>課程 / 冊別</span>
-          <select id="questionBook"></select>
-        </label>
-        <label>
-          <span>章節</span>
-          <select id="questionChapter"></select>
-        </label>
-      </div>
+            <div class="question-topic-box">
+              <div class="section-head">
+                <div>
+                  <h2>知識點</h2>
+                  <p>可多選；若不選，會使用目前章節與節名當搜尋範圍。</p>
+                </div>
+                <span id="questionTopicCount" class="badge">0</span>
+              </div>
+              <div id="questionTopicChoices" class="topic-list">課程資料載入中...</div>
+            </div>
+          </section>
 
-      <div class="field-grid two">
-        <label>
-          <span>節</span>
-          <select id="questionSection"></select>
-        </label>
-        <label>
-          <span>搜尋補充關鍵字</span>
-          <input id="questionKeyword" placeholder="可空白，例：離子積常數、板塊">
-        </label>
-      </div>
+          <section class="form-section" aria-labelledby="questionSettingTitle">
+            <div class="section-head compact">
+              <div>
+                <h2 id="questionSettingTitle">出題設定</h2>
+                <p>選擇題目來源、情境、題數與難度分配。</p>
+              </div>
+            </div>
+            <div class="mode-choice" role="group" aria-label="出題方式">
+              <button class="mode-card active" type="button" data-question-mode="bankOriginal">
+                <strong>本機題庫原題</strong>
+                <span>直接抽題，不改題幹、選項與答案。</span>
+              </button>
+              <button class="mode-card" type="button" data-question-mode="aiVariant">
+                <strong>AI 生成仿題</strong>
+                <span>參考題庫考點，改寫成同概念新題。</span>
+              </button>
+            </div>
+            <label class="visually-hidden">
+              <span>出題方式</span>
+              <select id="questionGenerationMode" aria-hidden="true" tabindex="-1">
+                <option value="bankOriginal">本機題庫原題</option>
+                <option value="aiVariant">AI 生成仿題</option>
+              </select>
+            </label>
+            <div class="field-grid three">
+              <label>
+                <span>使用情境</span>
+                <select id="questionUseCase">
+                  <option value="quiz">一般隨堂測驗</option>
+                  <option value="exam">正式考卷</option>
+                  <option value="practice">練習題組</option>
+                  <option value="review">考前複習</option>
+                </select>
+              </label>
+              <label>
+                <span>題型</span>
+                <select id="questionType">
+                  <option>隨堂測驗</option>
+                  <option>課後練習</option>
+                  <option>段考複習</option>
+                  <option>錯題再練</option>
+                </select>
+              </label>
+              <label>
+                <span>先抓候選題</span>
+                <input id="questionCandidateCount" type="number" min="5" max="100" value="30">
+              </label>
+            </div>
+            <div class="field-grid four compact-fields">
+              <label>
+                <span>成卷題數</span>
+                <input id="questionTotalCount" type="number" min="1" max="60" value="20">
+              </label>
+              <label>
+                <span>基礎題</span>
+                <input id="questionBasicCount" type="number" min="0" max="60" value="10">
+              </label>
+              <label>
+                <span>中等題</span>
+                <input id="questionMiddleCount" type="number" min="0" max="60" value="6">
+              </label>
+              <label>
+                <span>挑戰題</span>
+                <input id="questionChallengeCount" type="number" min="0" max="60" value="4">
+              </label>
+            </div>
+          </section>
 
-      <div class="question-topic-box">
-        <div class="section-head">
-          <div>
-            <h2>知識點</h2>
-            <p>可多選；若不選，會使用目前章節與節名當搜尋範圍。</p>
+          <section class="form-section" aria-labelledby="questionOutputTitle">
+            <div class="section-head compact">
+              <div>
+                <h2 id="questionOutputTitle">輸出</h2>
+                <p>設定檔案型態、版型與補充要求。</p>
+              </div>
+            </div>
+            <div class="field-grid four compact-fields">
+              <label>
+                <span>產出型態</span>
+                <select id="questionOutput">
+                  <option value="word">Word 測驗卷</option>
+                  <option value="pdf">Word + PDF</option>
+                  <option value="obsidian">Obsidian Markdown</option>
+                </select>
+              </label>
+              <label>
+                <span>版型</span>
+                <select id="questionStyle">
+                  <option value="standard">標準快考版</option>
+                  <option value="gray">灰階列印版</option>
+                  <option value="reference">參考書精緻版</option>
+                  <option value="exam">段考模擬版</option>
+                  <option value="correction">錯題訂正版</option>
+                  <option value="teacher">教師備課版</option>
+                </select>
+              </label>
+              <label>
+                <span>排版</span>
+                <select id="questionLayout">
+                  <option value="spacious">寬鬆作答版</option>
+                  <option value="compact">緊湊省紙版</option>
+                  <option value="twoColumn">雙欄選擇題版</option>
+                  <option value="card">單題卡片版</option>
+                  <option value="formal">正式考卷版</option>
+                  <option value="separateAnswers">答案分離版</option>
+                  <option value="bw">黑白影印版</option>
+                </select>
+              </label>
+              <label>
+                <span>字體設定</span>
+                <select id="questionTypography">
+                  <option value="kai12">標楷體 12 pt</option>
+                  <option value="kai11">標楷體 11 pt</option>
+                  <option value="jhenghei12">微軟正黑體 12 pt</option>
+                  <option value="jhenghei11">微軟正黑體 11 pt</option>
+                </select>
+              </label>
+            </div>
+            <label class="full-field">
+              <span>補充要求</span>
+              <textarea id="questionNotes" rows="3" placeholder="例：仿題不要照抄原題；每題都要附學生看得懂的解析；公式請盡量整理成標準格式。"></textarea>
+            </label>
+          </section>
+        </div>
+
+        <aside class="question-current-card" aria-labelledby="questionCurrentTitle">
+          <span class="summary-kicker">目前設定</span>
+          <h2 id="questionCurrentTitle">尚未產生</h2>
+          <div id="questionCurrentSummary" class="summary-lines">選好範圍後會自動整理摘要。</div>
+          <div class="summary-chips">
+            <span id="questionModeSummary">本機題庫原題</span>
+            <span id="questionCountSummary">20 題</span>
           </div>
-          <span id="questionTopicCount" class="badge">0</span>
-        </div>
-        <div id="questionTopicChoices" class="topic-list">課程資料載入中...</div>
+        </aside>
       </div>
-
-      <div class="field-grid three">
-        <label>
-          <span>先抓候選題</span>
-          <input id="questionCandidateCount" type="number" min="5" max="100" value="30">
-        </label>
-        <label>
-          <span>成卷題數</span>
-          <input id="questionTotalCount" type="number" min="1" max="60" value="20">
-        </label>
-        <label>
-          <span>題型</span>
-          <select id="questionType">
-            <option>隨堂測驗</option>
-            <option>課後練習</option>
-            <option>段考複習</option>
-            <option>錯題再練</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="field-grid three compact-fields">
-        <label>
-          <span>基礎題</span>
-          <input id="questionBasicCount" type="number" min="0" max="60" value="10">
-        </label>
-        <label>
-          <span>中等題</span>
-          <input id="questionMiddleCount" type="number" min="0" max="60" value="6">
-        </label>
-        <label>
-          <span>挑戰題</span>
-          <input id="questionChallengeCount" type="number" min="0" max="60" value="4">
-        </label>
-      </div>
-
-      <div class="field-grid three compact-fields">
-        <label>
-          <span>版型</span>
-          <select id="questionStyle">
-            <option value="standard">標準快考版</option>
-            <option value="gray">灰階列印版</option>
-            <option value="reference">參考書精緻版</option>
-            <option value="exam">段考模擬版</option>
-            <option value="correction">錯題訂正版</option>
-            <option value="teacher">教師備課版</option>
-          </select>
-        </label>
-        <label>
-          <span>排版</span>
-          <select id="questionLayout">
-            <option value="spacious">寬鬆作答版</option>
-            <option value="compact">緊湊省紙版</option>
-            <option value="twoColumn">雙欄選擇題版</option>
-            <option value="card">單題卡片版</option>
-            <option value="formal">正式考卷版</option>
-            <option value="separateAnswers">答案分離版</option>
-            <option value="bw">黑白影印版</option>
-          </select>
-        </label>
-        <label>
-          <span>字體設定</span>
-          <select id="questionTypography">
-            <option value="kai12">標楷體 12 pt</option>
-            <option value="kai11">標楷體 11 pt</option>
-            <option value="jhenghei12">微軟正黑體 12 pt</option>
-            <option value="jhenghei11">微軟正黑體 11 pt</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="full-field">
-        <span>補充要求</span>
-        <textarea id="questionNotes" rows="3" placeholder="例：仿題不要照抄原題；每題都要附學生看得懂的解析；公式請盡量整理成標準格式。"></textarea>
-      </label>
 
       <div class="toolbar question-actions">
         <button id="makeQuestionsBtn" class="primary-action" type="button">製作題目</button>
@@ -540,18 +691,23 @@
         </div>
       </div>
 
-      <label class="full-field">
+      <label class="full-field generated-prompt-field">
         <span>Codex 出題指令</span>
         <textarea id="questionPromptOutput" rows="16" readonly placeholder="選好範圍後按「產生出題指令」。"></textarea>
       </label>
     </section>
 
-    <section class="panel handout-panel hidden-view" data-workspace-view="handout" aria-labelledby="handoutTitle">
+    <section class="panel handout-panel hidden-view" data-workspace-view="production" data-production-task="handout" aria-labelledby="handoutTitle">
+      <div class="inner-switch" aria-label="製作工具">
+        <button class="tab-btn" type="button" data-view-tab="filename">建立檔名</button>
+        <button class="tab-btn" type="button" data-view-tab="question">製作題目</button>
+        <button class="tab-btn" type="button" data-view-tab="handout">製作講義</button>
+      </div>
       <div class="step-head">
         <span class="step-index">講</span>
         <div>
-          <h2 id="handoutTitle">講義模組製作</h2>
-          <p>從課程資料選範圍，產生可交給 Codex 的講義製作指令。</p>
+          <h2 id="handoutTitle">講義設定</h2>
+          <p>設定講義版本、結構、題數、題目來源與版型。</p>
         </div>
       </div>
 
@@ -693,10 +849,26 @@
         </div>
       </div>
 
-      <label class="full-field">
+      <label class="full-field generated-prompt-field">
         <span>Codex 講義製作指令</span>
         <textarea id="handoutPromptOutput" rows="18" readonly placeholder="選好範圍後按「產生講義指令」。"></textarea>
       </label>
+    </section>
+
+    <section class="panel production-final-panel hidden-view" data-workspace-view="production" aria-labelledby="batchOutputTitle">
+      <div class="step-head">
+        <span class="step-index">出</span>
+        <div>
+          <h2 id="batchOutputTitle">產生結果</h2>
+          <p>確認設定後按一次產生，需要時再複製完整結果。</p>
+        </div>
+      </div>
+      <div class="toolbar question-actions">
+        <button id="buildBatchOutputBtn" class="primary-action" type="button">產生勾選項目</button>
+        <button id="copyBatchOutputBtn" class="secondary" type="button">複製全部結果</button>
+      </div>
+      <div id="batchOutputPreview" class="batch-output-preview muted">尚未產生結果。</div>
+      <textarea id="batchOutputText" class="batch-output-text collapsed" rows="10" readonly placeholder="按「產生勾選項目」後，這裡會彙整檔名、題目指令與講義指令。"></textarea>
     </section>
 
     <section class="panel archive-panel" data-workspace-view="progress" aria-labelledby="archiveTitle">
@@ -751,6 +923,10 @@
     </section>
 
     <section class="panel course-data-panel hidden-view" data-workspace-view="data" aria-labelledby="courseDataTitle">
+      <div class="inner-switch" aria-label="資料工具">
+        <button class="tab-btn" type="button" data-view-tab="data">課程資料</button>
+        <button class="tab-btn" type="button" data-view-tab="offline">離線入口</button>
+      </div>
       <div class="course-data-grid">
         <div class="course-data-sidebar">
           <div class="step-head">
@@ -844,6 +1020,10 @@
     </section>
 
     <section class="panel offline-panel hidden-view" data-workspace-view="offline" aria-labelledby="offlineTitle">
+      <div class="inner-switch" aria-label="資料工具">
+        <button class="tab-btn" type="button" data-view-tab="data">課程資料</button>
+        <button class="tab-btn" type="button" data-view-tab="offline">離線入口</button>
+      </div>
       <div class="step-head">
         <span class="step-index">離</span>
         <div>
@@ -913,6 +1093,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260802-production-ui"></script>
 </body>
 </html>

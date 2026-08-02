@@ -19,6 +19,7 @@ let courseReviewExpanded = false;
 let courseFixes = readJson(STORAGE.fixes, []);
 let progressCache = readJson(STORAGE.progressCache, []);
 let homeworkPhrases = readJson(STORAGE.homeworkPhrases, ["完成講義", "訂正錯題", "複習今日進度", "預習下次範圍"]);
+let sharedSelectedTopics = new Set();
 let questionSelectedTopics = new Set();
 let handoutSelectedTopics = new Set();
 
@@ -205,6 +206,14 @@ function setSelectOptions(selectId, values, preferred = "") {
   select.innerHTML = values.map(value => `<option>${escapeHtml(value)}</option>`).join("");
   if (preferred && values.includes(preferred)) {
     select.value = preferred;
+  }
+}
+
+function setSelectValueIfPossible(selectId, value) {
+  const select = $(selectId);
+  if (!select || !value) return;
+  if ([...select.options].some(option => option.value === value)) {
+    select.value = value;
   }
 }
 
@@ -866,6 +875,7 @@ async function initFilenameTool() {
     initQuestionBuilder();
     initHandoutBuilder();
     initCourseReview();
+    initSharedProductionScope();
   } catch {
     $("filenamePreview").textContent = "課程資料載入失敗，仍可手動輸入其他類型檔名。";
     $("topicChoices").textContent = "課程資料載入失敗，仍可手動輸入今日進度。";
@@ -978,6 +988,185 @@ function searchProgressOptions() {
         <button class="mini-icon-btn" type="button" data-cache-progress-search="${escapeHtml(encodeURIComponent(row))}" title="存入暫存">+</button>
       </span>`).join("")
     : `<span>找不到符合的章節。</span>`;
+}
+
+function initSharedProductionScope() {
+  if (!$("sharedGrade")) return;
+  $("sharedGrade").value = $("grade").value;
+  renderSharedSubjects();
+}
+
+function renderSharedSubjects() {
+  const subjects = subjectsForGrade($("sharedGrade").value);
+  setSelectOptions("sharedSubject", subjects, $("subject").value);
+  renderSharedBooks();
+}
+
+function renderSharedBooks() {
+  const books = booksForGrade(currentSharedSubject(), $("sharedGrade").value);
+  setSelectOptions("sharedBook", books, $("sharedBook").value);
+  renderSharedChapters();
+}
+
+function renderSharedChapters() {
+  const chapters = Object.keys(currentSharedBook());
+  $("sharedChapter").innerHTML = chapters.map(chapter => {
+    const code = chapterCode(chapter);
+    const label = code ? `${code} ${chapter}` : chapter;
+    return `<option value="${escapeHtml(chapter)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  renderSharedSections();
+}
+
+function renderSharedSections() {
+  const sections = Object.keys(currentSharedChapter());
+  $("sharedSection").innerHTML = sections.map(section => `<option>${escapeHtml(section)}</option>`).join("");
+  renderSharedTopics();
+}
+
+function renderSharedTopics() {
+  sharedSelectedTopics.clear();
+  const topics = currentSharedSection();
+  if (!topics.length) {
+    $("sharedTopicChoices").textContent = "這個節目前沒有小重點，可直接使用目前章節與節名。";
+    $("sharedTopicCount").textContent = "0";
+    syncSharedScopeToTools();
+    return;
+  }
+  $("sharedTopicChoices").innerHTML = topics.map(topic => (
+    `<button class="path-chip selectable" type="button" data-shared-topic="${escapeHtml(topic)}">${escapeHtml(topic)}</button>`
+  )).join("");
+  $("sharedTopicCount").textContent = "0";
+  syncSharedScopeToTools();
+}
+
+function currentSharedSubject() {
+  return filenameCourseData[$("sharedSubject").value] || { books: {} };
+}
+
+function currentSharedBook() {
+  return currentSharedSubject().books?.[$("sharedBook").value] || {};
+}
+
+function currentSharedChapter() {
+  return currentSharedBook()[$("sharedChapter").value] || {};
+}
+
+function currentSharedSection() {
+  return currentSharedChapter()[$("sharedSection").value] || [];
+}
+
+function toggleSharedTopic(topic, button) {
+  if (sharedSelectedTopics.has(topic)) {
+    sharedSelectedTopics.delete(topic);
+    button.classList.remove("selected");
+  } else {
+    sharedSelectedTopics.add(topic);
+    button.classList.add("selected");
+  }
+  $("sharedTopicCount").textContent = sharedSelectedTopics.size;
+  syncSharedScopeToTools();
+}
+
+function syncSharedScopeToTools() {
+  if (!$("sharedGrade")) return;
+  const grade = $("sharedGrade").value;
+  const subject = $("sharedSubject").value;
+  const book = $("sharedBook").value;
+  const chapter = $("sharedChapter").value;
+  const section = $("sharedSection").value;
+  const keyword = $("sharedKeyword").value.trim();
+
+  if (filenameCourseData[subject]) {
+    $("filenameSubject").value = subject;
+    renderFilenameCourses();
+    setSelectValueIfPossible("filenameCourse", book);
+    renderFilenameChapters();
+    setSelectValueIfPossible("filenameChapter", chapter);
+    syncFilenameCourseAlias();
+    syncFilenameUnit();
+    updateFilenamePreview();
+  }
+
+  $("questionGrade").value = grade;
+  renderQuestionSubjects();
+  setSelectValueIfPossible("questionSubject", subject);
+  renderQuestionBooks();
+  setSelectValueIfPossible("questionBook", book);
+  renderQuestionChapters();
+  setSelectValueIfPossible("questionChapter", chapter);
+  renderQuestionSections();
+  setSelectValueIfPossible("questionSection", section);
+  $("questionKeyword").value = keyword;
+  renderQuestionTopics();
+  questionSelectedTopics = new Set(sharedSelectedTopics);
+  $("questionTopicCount").textContent = questionSelectedTopics.size;
+  buildQuestionPrompt();
+
+  $("handoutGrade").value = grade;
+  renderHandoutSubjects();
+  setSelectValueIfPossible("handoutSubject", subject);
+  renderHandoutBooks();
+  setSelectValueIfPossible("handoutBook", book);
+  renderHandoutChapters();
+  setSelectValueIfPossible("handoutChapter", chapter);
+  renderHandoutSections();
+  setSelectValueIfPossible("handoutSection", section);
+  renderHandoutTopics();
+  handoutSelectedTopics = new Set(sharedSelectedTopics);
+  $("handoutTopicCount").textContent = handoutSelectedTopics.size;
+  buildHandoutPrompt();
+}
+
+function buildBatchOutput() {
+  syncSharedScopeToTools();
+  updateProductionTaskVisibility();
+  const blocks = [];
+  const summary = [];
+  if ($("batchOutputFilename").checked) {
+    blocks.push(["【檔名】", buildFilename()].join("\n"));
+    summary.push("檔名");
+  }
+  if ($("batchOutputQuestion").checked) {
+    buildQuestionPrompt();
+    blocks.push(["【題目指令】", $("questionPromptOutput").value].join("\n"));
+    summary.push("題目指令");
+  }
+  if ($("batchOutputHandout").checked) {
+    buildHandoutPrompt();
+    blocks.push(["【講義指令】", $("handoutPromptOutput").value].join("\n"));
+    summary.push("講義指令");
+  }
+  $("batchOutputText").value = blocks.length ? blocks.join("\n\n---\n\n") : "請至少勾選一個輸出項目。";
+  $("batchOutputText").classList.toggle("collapsed", !blocks.length);
+  $("batchOutputPreview").classList.toggle("muted", !blocks.length);
+  $("batchOutputPreview").textContent = blocks.length
+    ? `已產生：${summary.join("、")}。可直接複製全部結果。`
+    : "請至少勾選一個輸出項目。";
+  toast("已產生勾選項目");
+}
+
+async function copyBatchOutput() {
+  if (!$("batchOutputText").value.trim()) buildBatchOutput();
+  await navigator.clipboard.writeText($("batchOutputText").value);
+  toast("已複製全部結果");
+}
+
+function updateProductionTaskVisibility() {
+  const visibleByTask = {
+    filename: $("batchOutputFilename")?.checked,
+    question: $("batchOutputQuestion")?.checked,
+    handout: $("batchOutputHandout")?.checked
+  };
+  document.querySelectorAll("[data-production-task]").forEach(panel => {
+    const shouldShow = activeView === "production" && visibleByTask[panel.dataset.productionTask];
+    panel.classList.toggle("hidden-view", !shouldShow);
+  });
+  if ($("batchOutputText") && !$("batchOutputText").value.trim()) {
+    $("batchOutputText").classList.add("collapsed");
+    $("batchOutputPreview").classList.add("muted");
+    $("batchOutputPreview").textContent = "尚未產生結果。";
+  }
 }
 
 function initQuestionBuilder() {
@@ -1108,6 +1297,8 @@ function questionSpec() {
     candidateCount: Number($("questionCandidateCount").value || 30),
     totalCount: total,
     difficulty: { basic, middle, challenge },
+    generationMode: $("questionGenerationMode").value,
+    useCase: $("questionUseCase").value,
     type: $("questionType").value,
     output: $("questionOutput").value,
     style: $("questionStyle").value,
@@ -1118,6 +1309,46 @@ function questionSpec() {
     typographyLabel: QUESTION_TYPOGRAPHY_LABELS[$("questionTypography").value] || $("questionTypography").value,
     notes: $("questionNotes").value.trim()
   };
+}
+
+function questionGenerationModeLabel(value) {
+  return {
+    bankOriginal: "本機題庫原題",
+    aiVariant: "AI 生成仿題"
+  }[value] || value;
+}
+
+function questionUseCaseLabel(value) {
+  return {
+    quiz: "一般隨堂測驗",
+    exam: "正式考卷",
+    practice: "練習題組",
+    review: "考前複習"
+  }[value] || value;
+}
+
+function syncQuestionModeButtons() {
+  if (!$("questionGenerationMode")) return;
+  const current = $("questionGenerationMode").value;
+  document.querySelectorAll("[data-question-mode]").forEach(button => {
+    button.classList.toggle("active", button.dataset.questionMode === current);
+  });
+}
+
+function updateQuestionCurrentSummary(spec = questionSpec()) {
+  if (!$("questionCurrentSummary")) return;
+  const topicText = spec.topics.length ? spec.topics.join("、") : "依章節與節名";
+  $("questionCurrentTitle").textContent = `${spec.grade} ${spec.subject}｜${spec.type}`;
+  $("questionCurrentSummary").innerHTML = [
+    `<p>${escapeHtml(spec.book)}</p>`,
+    `<p>${escapeHtml(spec.chapter)} / ${escapeHtml(spec.section)}</p>`,
+    `<p>${escapeHtml(questionUseCaseLabel(spec.useCase))}，${escapeHtml(spec.totalCount)} 題：基礎 ${escapeHtml(spec.difficulty.basic)}、中等 ${escapeHtml(spec.difficulty.middle)}、挑戰 ${escapeHtml(spec.difficulty.challenge)}</p>`,
+    `<p>${escapeHtml(spec.styleLabel)} / ${escapeHtml(spec.layoutLabel)} / ${escapeHtml(spec.typographyLabel)}</p>`,
+    `<p>知識點：${escapeHtml(topicText)}</p>`
+  ].join("");
+  $("questionModeSummary").textContent = questionGenerationModeLabel(spec.generationMode);
+  $("questionCountSummary").textContent = `${spec.candidateCount} -> ${spec.totalCount} 題`;
+  syncQuestionModeButtons();
 }
 
 function outputLabel(value) {
@@ -1131,11 +1362,40 @@ function outputLabel(value) {
 function buildQuestionPrompt() {
   if (!$("questionPromptOutput")) return;
   const spec = questionSpec();
+  updateQuestionCurrentSummary(spec);
   const topicText = spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
-  const notes = spec.notes || "仿題不要照抄原題；保留同一考點與難度，改數字、情境或問法。若原題明確標記為會考題，可以直接使用原題。";
+  const isBankOriginal = spec.generationMode === "bankOriginal";
+  const notes = spec.notes || (isBankOriginal
+    ? "使用本機題庫原題，不改寫題幹與選項；僅整理成指定版型並附答案解析。"
+    : "AI 生成仿題不要照抄原題；保留同一考點與難度，改數字、情境或問法。若原題明確標記為會考題，可以直接使用原題。");
+  const opening = isBankOriginal
+    ? [
+        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題，`,
+        `直接篩選 ${spec.totalCount} 題本機題庫原題，製作成${spec.type}。`
+      ]
+    : [
+        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題作為參考，`,
+        `幫我用 AI 生成 ${spec.totalCount} 題同考點仿題，製作成${spec.type}。`
+      ];
+  const requirementLines = isBankOriginal
+    ? [
+        `基礎 ${spec.difficulty.basic} 題、中等 ${spec.difficulty.middle} 題、挑戰 ${spec.difficulty.challenge} 題。`,
+        `出題方式：本機題庫原題。`,
+        `請直接使用本機題庫題目，不改寫題幹、選項與答案；可整理標點、換行與版面，但不得改變原題內容。`,
+        `若題庫候選題不足，請明確回報不足數量，不要自行補 AI 題冒充原題。`,
+        `每題附答案與解析；若題庫已有解析可整理語句，若解析不足可補充教師用解析並標示為補充。`,
+        `產出格式：${outputLabel(spec.output)}。`
+      ]
+    : [
+        `基礎 ${spec.difficulty.basic} 題、中等 ${spec.difficulty.middle} 題、挑戰 ${spec.difficulty.challenge} 題。`,
+        `出題方式：AI 生成仿題。`,
+        `使用仿題方式輸出，一般題庫題不要直接照抄原題；若原題明確標記為會考題，可以直接使用原題。`,
+        `非會考題先用題庫原題作為考點與難度參考，再重新生成同概念題目，需改數字、情境、問法或選項配置。`,
+        `每題附答案與詳細解析。`,
+        `產出格式：${outputLabel(spec.output)}。`
+      ];
   const prompt = [
-    `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題，`,
-    `幫我篩成 ${spec.totalCount} 題${spec.type}。`,
+    ...opening,
     ``,
     `範圍：`,
     `年級：${spec.grade}`,
@@ -1147,13 +1407,11 @@ function buildQuestionPrompt() {
     `節：${spec.section}`,
     `知識點：${topicText}`,
     `搜尋關鍵字：${spec.keyword}`,
+    `出題方式：${questionGenerationModeLabel(spec.generationMode)}`,
+    `使用情境：${questionUseCaseLabel(spec.useCase)}`,
     ``,
     `要求：`,
-    `基礎 ${spec.difficulty.basic} 題、中等 ${spec.difficulty.middle} 題、挑戰 ${spec.difficulty.challenge} 題。`,
-    `使用仿題方式輸出，一般題庫題不要直接照抄原題；若原題明確標記為會考題，可以直接使用原題。`,
-    `非會考題先用題庫原題作為考點與難度參考，再重新生成同概念題目。`,
-    `每題附答案與詳細解析。`,
-    `產出格式：${outputLabel(spec.output)}。`,
+    ...requirementLines,
     ``,
     `版型與排版：`,
     `版型：${spec.styleLabel}`,
@@ -1171,7 +1429,7 @@ function buildQuestionPrompt() {
     notes
   ].join("\n");
   $("questionPromptOutput").value = prompt;
-  $("questionSearchSummary").textContent = `${spec.level} / ${spec.questionBankSubject} / ${spec.keyword || "未填關鍵字"} / ${spec.candidateCount} -> ${spec.totalCount} / ${spec.styleLabel} / ${spec.layoutLabel} / ${spec.typographyLabel}`;
+  $("questionSearchSummary").textContent = `${questionGenerationModeLabel(spec.generationMode)} / ${spec.level} / ${spec.questionBankSubject} / ${spec.keyword || "未填關鍵字"} / ${spec.candidateCount} -> ${spec.totalCount} / ${spec.styleLabel} / ${spec.layoutLabel} / ${spec.typographyLabel}`;
 }
 
 async function copyQuestionPrompt() {
@@ -1759,11 +2017,14 @@ function escapeHtml(value) {
 function switchView(view) {
   activeView = view;
   document.querySelectorAll("[data-workspace-view]").forEach(panel => {
-    panel.classList.toggle("hidden-view", panel.dataset.workspaceView !== view);
+    const views = (panel.dataset.workspaceView || "").split(",");
+    panel.classList.toggle("hidden-view", !views.includes(view));
   });
   document.querySelectorAll("[data-view-tab]").forEach(button => {
-    button.classList.toggle("active", button.dataset.viewTab === view);
+    const group = (button.dataset.viewGroup || button.dataset.viewTab || "").split(",");
+    button.classList.toggle("active", group.includes(view));
   });
+  updateProductionTaskVisibility();
   if (view === "data") renderCourseReviewCurrent();
 }
 
@@ -2253,6 +2514,23 @@ function bindEvents() {
   $("progressSearch").addEventListener("input", searchProgressOptions);
   $("clearProgressSearchBtn").addEventListener("click", clearProgressSearch);
   $("addHomeworkPhraseBtn").addEventListener("click", addHomeworkPhrase);
+  $("sharedGrade").addEventListener("change", renderSharedSubjects);
+  $("sharedSubject").addEventListener("change", renderSharedBooks);
+  $("sharedBook").addEventListener("change", renderSharedChapters);
+  $("sharedChapter").addEventListener("change", renderSharedSections);
+  $("sharedSection").addEventListener("change", renderSharedTopics);
+  $("sharedKeyword").addEventListener("input", syncSharedScopeToTools);
+  $("buildBatchOutputBtn").addEventListener("click", buildBatchOutput);
+  $("copyBatchOutputBtn").addEventListener("click", copyBatchOutput);
+  ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout"].forEach(id => {
+    $(id).addEventListener("change", () => {
+      updateProductionTaskVisibility();
+      $("batchOutputText").value = "";
+      $("batchOutputText").classList.add("collapsed");
+      $("batchOutputPreview").classList.add("muted");
+      $("batchOutputPreview").textContent = "尚未產生結果。";
+    });
+  });
   $("filenameType").addEventListener("change", () => {
     updateFilenameFields();
     updateFilenamePreview();
@@ -2292,12 +2570,18 @@ function bindEvents() {
     buildQuestionPrompt();
   });
   [
-    "questionOutput", "questionKeyword", "questionCandidateCount", "questionTotalCount", "questionType",
+    "questionOutput", "questionGenerationMode", "questionUseCase", "questionKeyword", "questionCandidateCount", "questionTotalCount", "questionType",
     "questionBasicCount", "questionMiddleCount", "questionChallengeCount",
     "questionStyle", "questionLayout", "questionTypography", "questionNotes"
   ].forEach(id => {
     $(id).addEventListener("input", buildQuestionPrompt);
     $(id).addEventListener("change", buildQuestionPrompt);
+  });
+  document.querySelectorAll("[data-question-mode]").forEach(button => {
+    button.addEventListener("click", () => {
+      $("questionGenerationMode").value = button.dataset.questionMode;
+      buildQuestionPrompt();
+    });
   });
   $("makeQuestionsBtn").addEventListener("click", makeQuestions);
   $("buildQuestionPromptBtn").addEventListener("click", buildQuestionPrompt);
@@ -2375,6 +2659,7 @@ function bindEvents() {
     if (target.dataset.cacheProgressSearch) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressSearch));
     if (target.dataset.homework) phraseAppend("homework", target.dataset.homework);
     if (target.dataset.quiz) phraseAppend("quiz", target.dataset.quiz);
+    if (target.dataset.sharedTopic) toggleSharedTopic(target.dataset.sharedTopic, target);
     if (target.dataset.questionTopic) toggleQuestionTopic(target.dataset.questionTopic, target);
     if (target.dataset.handoutTopic) toggleHandoutTopic(target.dataset.handoutTopic, target);
     if (target.dataset.applyHandoutExample) applyHandoutExample(target.dataset.applyHandoutExample);
@@ -2423,6 +2708,10 @@ function bindEvents() {
       renderQuestionBooks();
       $("handoutSubject").value = $("subject").value;
       renderHandoutBooks();
+      if ($("sharedSubject")) {
+        $("sharedSubject").value = $("subject").value;
+        renderSharedBooks();
+      }
       $("dataSubjectSelect").value = $("subject").value;
       renderCourseReviewBooks();
       renderCourseReviewCurrent();
@@ -2435,6 +2724,10 @@ function bindEvents() {
     renderQuestionSubjects();
     $("handoutGrade").value = $("grade").value;
     renderHandoutSubjects();
+    if ($("sharedGrade")) {
+      $("sharedGrade").value = $("grade").value;
+      renderSharedSubjects();
+    }
     saveDraft();
   });
 
