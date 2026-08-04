@@ -278,7 +278,7 @@ function collectForm() {
 }
 
 function generateText(data = collectForm()) {
-  const progress = data.progress || "未填寫";
+  const progress = formatProgressText(data.progress);
   if (data.mode === "formal") {
     return [
       `教學日誌`,
@@ -312,6 +312,75 @@ function generateText(data = collectForm()) {
   ].filter(Boolean).join("\n");
 }
 
+function splitProgressPath(row) {
+  return String(row || "")
+    .split(/\s+\/\s+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
+function groupProgressRows(value) {
+  const rows = String(value || "")
+    .split(/\n+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+  const grouped = [];
+  const groups = new Map();
+
+  rows.forEach(row => {
+    const parts = splitProgressPath(row);
+    if (parts.length < 4) {
+      grouped.push({ type: "single", text: row });
+      return;
+    }
+
+    const base = parts.slice(0, 3).join(" / ");
+    const topic = parts.slice(3).join(" / ");
+    if (!topic) {
+      grouped.push({ type: "single", text: row });
+      return;
+    }
+
+    if (!groups.has(base)) {
+      const group = { type: "group", base, topics: [] };
+      groups.set(base, group);
+      grouped.push(group);
+    }
+    const group = groups.get(base);
+    if (!group.topics.includes(topic)) group.topics.push(topic);
+  });
+
+  return grouped;
+}
+
+function formatProgressText(value, fallback = "未填寫") {
+  const rows = groupProgressRows(value).map(item => {
+    if (item.type === "group" && item.topics.length) {
+      return `${item.base}：${item.topics.join("、")}`;
+    }
+    return item.text;
+  });
+  return rows.length ? rows.join("\n") : fallback;
+}
+
+function renderProgressText(value, fallback = "未填寫") {
+  const rows = groupProgressRows(value);
+  if (!rows.length) return `<p>${escapeHtml(fallback)}</p>`;
+
+  return rows.map(item => {
+    if (item.type !== "group" || !item.topics.length) {
+      return `<p>${escapeHtml(item.text)}</p>`;
+    }
+
+    return `
+      <div class="progress-group">
+        <div class="progress-base">${escapeHtml(item.base)}</div>
+        <div class="progress-topic-line">${item.topics.map(topic => `<span>${escapeHtml(topic)}</span>`).join("")}</div>
+      </div>
+    `;
+  }).join("");
+}
+
 function outputModeLabel(mode) {
   return {
     line: "LINE 緊實",
@@ -336,12 +405,12 @@ function renderListText(value, fallback = "未填寫") {
     : `<p>${escapeHtml(fallback)}</p>`;
 }
 
-function previewItem(label, value, tone, fallback = "未填寫") {
+function previewItem(label, value, tone, fallback = "未填寫", renderer = renderListText) {
   const hasValue = String(value || "").trim();
   return `
     <section class="preview-item ${tone}">
       <div class="preview-item-label">${escapeHtml(label)}</div>
-      <div class="preview-item-body">${renderListText(hasValue ? value : fallback, fallback)}</div>
+      <div class="preview-item-body">${renderer(hasValue ? value : fallback, fallback)}</div>
     </section>
   `;
 }
@@ -370,7 +439,7 @@ function renderPreviewCard(data, text) {
         ${formalMeta}
       </div>
       <div class="preview-grid">
-        ${previewItem("今日進度", data.progress, "tone-progress")}
+        ${previewItem("今日進度", data.progress, "tone-progress", "未填寫", renderProgressText)}
         ${data.pages ? previewItem("頁數", data.pages, "tone-pages") : ""}
         ${data.quiz ? previewItem("小考", data.quiz, "tone-quiz") : ""}
         ${data.homework ? previewItem(data.mode === "parent" ? "回家請完成" : "作業", data.homework, "tone-homework") : ""}

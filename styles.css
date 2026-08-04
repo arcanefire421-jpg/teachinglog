@@ -873,6 +873,48 @@ button:hover { filter: brightness(.97); }
   margin-top: 4px;
 }
 
+.progress-group {
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid rgba(47, 111, 219, .18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.progress-group + .progress-group,
+.preview-item-body p + .progress-group,
+.progress-group + p {
+  margin-top: 8px;
+}
+
+.progress-base {
+  color: #28466f;
+  font-size: .94rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.progress-topic-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.progress-topic-line span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #172033;
+  border: 1px solid rgba(47, 111, 219, .24);
+  font-size: .9rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
 .tone-progress {
   border-color: #b8cdf4;
   background: #eaf2ff;
