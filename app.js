@@ -4,6 +4,7 @@ const STORAGE = {
   draft: "teachinglog.v08.draft",
   fixes: "teachinglog.courseFixes.v1",
   progressCache: "teachinglog.v09.progressCache",
+  productionScopeCache: "teachinglog.productionScopeCache.v1",
   homeworkPhrases: "teachinglog.v09.homeworkPhrases",
   handoutExamples: "teachinglog.handoutExamples.v1"
 };
@@ -18,6 +19,7 @@ let activeView = "progress";
 let courseReviewExpanded = false;
 let courseFixes = readJson(STORAGE.fixes, []);
 let progressCache = readJson(STORAGE.progressCache, []);
+let productionScopeCache = readJson(STORAGE.productionScopeCache, []);
 let homeworkPhrases = readJson(STORAGE.homeworkPhrases, ["完成講義", "訂正錯題", "複習今日進度", "預習下次範圍"]);
 let sharedSelectedTopics = new Set();
 let questionSelectedTopics = new Set();
@@ -82,12 +84,26 @@ const QUESTION_LAYOUT_LABELS = {
   bw: "黑白影印版"
 };
 
-const QUESTION_TYPOGRAPHY_LABELS = {
+const TYPOGRAPHY_LABELS = {
+  kai14: "標楷體 14 pt",
+  kai13: "標楷體 13 pt",
   kai12: "標楷體 12 pt",
   kai11: "標楷體 11 pt",
+  kai105: "標楷體 10.5 pt",
+  jhenghei14: "微軟正黑體 14 pt",
+  jhenghei13: "微軟正黑體 13 pt",
   jhenghei12: "微軟正黑體 12 pt",
-  jhenghei11: "微軟正黑體 11 pt"
+  jhenghei11: "微軟正黑體 11 pt",
+  jhenghei105: "微軟正黑體 10.5 pt",
+  ming12: "新細明體 12 pt",
+  ming11: "新細明體 11 pt",
+  ming105: "新細明體 10.5 pt",
+  sourceHanSans12: "思源黑體 12 pt",
+  sourceHanSans11: "思源黑體 11 pt",
+  sourceHanSerif12: "思源宋體 12 pt",
+  sourceHanSerif11: "思源宋體 11 pt"
 };
+const QUESTION_TYPOGRAPHY_LABELS = TYPOGRAPHY_LABELS;
 
 function readJson(key, fallback) {
   try {
@@ -707,6 +723,290 @@ function renderProgressCache() {
   `).join("");
 }
 
+function productionScopePath(item) {
+  const main = [item.book, item.chapter, item.section].filter(Boolean).join(" / ");
+  const topics = item.topics?.length ? ` / ${item.topics.join("、")}` : "";
+  const keyword = item.keyword ? `（補充：${item.keyword}）` : "";
+  return `${main}${topics}${keyword}`;
+}
+
+function currentProductionScopeItem() {
+  const item = {
+    id: "",
+    enabled: true,
+    questionCount: "",
+    grade: $("sharedGrade").value,
+    subject: $("sharedSubject").value,
+    book: $("sharedBook").value,
+    chapter: $("sharedChapter").value,
+    section: $("sharedSection").value,
+    topics: Array.from(sharedSelectedTopics),
+    keyword: $("sharedKeyword").value.trim()
+  };
+  item.path = productionScopePath(item);
+  item.id = encodeURIComponent([
+    item.grade,
+    item.subject,
+    item.book,
+    item.chapter,
+    item.section,
+    item.topics.join("|"),
+    item.keyword
+  ].join("::"));
+  return item;
+}
+
+function saveProductionScopeCache() {
+  productionScopeCache = productionScopeCache.map(normalizeProductionScopeItem);
+  writeJson(STORAGE.productionScopeCache, productionScopeCache);
+  renderProductionScopeCache();
+  buildQuestionPrompt();
+  buildHandoutPrompt();
+  renderProductionFinalSummary();
+}
+
+function addCurrentProductionScope() {
+  const item = currentProductionScopeItem();
+  if (!item.book && !item.chapter && !item.section) {
+    toast("請先選擇製作範圍");
+    return;
+  }
+  if (!productionScopeCache.some(row => row.id === item.id)) {
+    productionScopeCache.push(item);
+    saveProductionScopeCache();
+  }
+  toast("已加入製作範圍");
+}
+
+function removeProductionScopeItem(id) {
+  productionScopeCache = productionScopeCache.filter(item => item.id !== id);
+  saveProductionScopeCache();
+}
+
+function normalizeProductionScopeItem(item) {
+  return {
+    ...item,
+    enabled: item.enabled !== false,
+    questionCount: item.questionCount ?? "",
+    path: item.path || productionScopePath(item)
+  };
+}
+
+function toggleProductionScopeItem(id, enabled) {
+  productionScopeCache = productionScopeCache.map(item => (
+    item.id === id ? { ...normalizeProductionScopeItem(item), enabled } : normalizeProductionScopeItem(item)
+  ));
+  saveProductionScopeCache();
+}
+
+function updateProductionScopeQuestionCount(id, value) {
+  productionScopeCache = productionScopeCache.map(item => (
+    item.id === id ? { ...normalizeProductionScopeItem(item), questionCount: value } : normalizeProductionScopeItem(item)
+  ));
+  writeJson(STORAGE.productionScopeCache, productionScopeCache);
+  buildQuestionPrompt();
+  buildHandoutPrompt();
+  renderProductionFinalSummary();
+}
+
+function moveProductionScopeItem(id, direction) {
+  const index = productionScopeCache.findIndex(item => item.id === id);
+  if (index < 0) return;
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= productionScopeCache.length) return;
+  const items = productionScopeCache.map(normalizeProductionScopeItem);
+  [items[index], items[nextIndex]] = [items[nextIndex], items[index]];
+  productionScopeCache = items;
+  saveProductionScopeCache();
+}
+
+function clearProductionScopeCache(confirmFirst = true) {
+  if (!productionScopeCache.length) return;
+  if (confirmFirst && !confirm("確定清空所有製作範圍嗎？")) return;
+  productionScopeCache = [];
+  saveProductionScopeCache();
+}
+
+function productionScopeItemsForPrompt() {
+  if (!productionScopeCache.length) return [currentProductionScopeItem()];
+  const enabledItems = productionScopeCache.map(normalizeProductionScopeItem).filter(item => item.enabled !== false);
+  return enabledItems.length ? enabledItems : [currentProductionScopeItem()];
+}
+
+function usingProductionScopeCache() {
+  return productionScopeCache.map(normalizeProductionScopeItem).some(item => item.enabled !== false);
+}
+
+function productionScopePromptLines(items = productionScopeItemsForPrompt()) {
+  return items.map((item, index) => {
+    const topicText = item.topics?.length ? ` / 知識點：${item.topics.join("、")}` : "";
+    const keywordText = item.keyword ? ` / 補充關鍵字：${item.keyword}` : "";
+    const countText = item.questionCount ? ` / 題數分配：${item.questionCount} 題` : "";
+    return `${index + 1}. ${item.grade} ${item.subject} / ${item.book} / ${item.chapter} / ${item.section}${topicText}${keywordText}${countText}`;
+  });
+}
+
+function productionScopeKeywordParts(items = productionScopeItemsForPrompt()) {
+  const parts = [];
+  items.forEach(item => {
+    parts.push(item.keyword, item.chapter, item.section, ...(item.topics || []));
+  });
+  return [...new Set(parts.filter(Boolean))];
+}
+
+function productionScopeSummaryText(items = productionScopeItemsForPrompt()) {
+  if (usingProductionScopeCache()) {
+    const firstItems = items.slice(0, 3).map(item => productionScopePath(item));
+    const more = items.length > 3 ? ` 等 ${items.length} 個範圍` : "";
+    return `跨 ${items.length} 個範圍：${firstItems.join("；")}${more}`;
+  }
+  return productionScopePath(items[0]);
+}
+
+function selectedOutputLabels() {
+  const labels = [];
+  if ($("batchOutputFilename")?.checked) labels.push("檔名");
+  if ($("batchOutputQuestion")?.checked) labels.push("題目");
+  if ($("batchOutputHandout")?.checked) labels.push("講義");
+  return labels;
+}
+
+function renderProductionFinalSummary() {
+  const wrap = $("productionFinalSummary");
+  if (!wrap) return;
+  const scopeItems = productionScopeItemsForPrompt();
+  const outputs = selectedOutputLabels();
+  const questionText = $("batchOutputQuestion")?.checked
+    ? `${questionGenerationModeLabel($("questionGenerationMode").value)}，${$("questionTotalCount").value || 0} 題`
+    : "未勾選題目";
+  const handoutText = $("batchOutputHandout")?.checked
+    ? `${handoutAudienceLabel($("handoutAudience").value)}，${handoutStyleLabel($("handoutStyle").value)}`
+    : "未勾選講義";
+  wrap.innerHTML = [
+    `<div><span>範圍</span><strong>${escapeHtml(usingProductionScopeCache() ? `跨 ${scopeItems.length} 個範圍` : "單一範圍")}</strong></div>`,
+    `<div><span>輸出</span><strong>${escapeHtml(outputs.join("、") || "尚未勾選")}</strong></div>`,
+    `<div><span>題目</span><strong>${escapeHtml(questionText)}</strong></div>`,
+    `<div><span>講義</span><strong>${escapeHtml(handoutText)}</strong></div>`
+  ].join("");
+}
+
+function syncProductionModeButtons(activeMode) {
+  document.querySelectorAll("[data-production-mode]").forEach(button => {
+    button.classList.toggle("active", button.dataset.productionMode === activeMode);
+  });
+}
+
+function applyProductionMode(mode) {
+  const modes = {
+    singleQuestion: { filename: false, question: true, handout: false },
+    multiQuestion: { filename: false, question: true, handout: false },
+    singleHandout: { filename: false, question: false, handout: true },
+    multiHandout: { filename: false, question: false, handout: true },
+    questionHandout: { filename: false, question: true, handout: true }
+  };
+  const selected = modes[mode] || modes.singleQuestion;
+  $("batchOutputFilename").checked = selected.filename;
+  $("batchOutputQuestion").checked = selected.question;
+  $("batchOutputHandout").checked = selected.handout;
+  syncProductionModeButtons(mode);
+  updateProductionTaskVisibility();
+  renderProductionFinalSummary();
+}
+
+function applyProductionPreset(preset) {
+  const presets = {
+    quiz20: () => {
+      applyProductionMode("singleQuestion");
+      $("questionUseCase").value = "quiz";
+      $("questionType").value = "隨堂測驗";
+      $("questionTotalCount").value = 20;
+      $("questionBasicCount").value = 10;
+      $("questionMiddleCount").value = 6;
+      $("questionChallengeCount").value = 4;
+      $("questionStyle").value = "standard";
+      $("questionLayout").value = "spacious";
+      $("questionTypography").value = "kai12";
+    },
+    examReview: () => {
+      applyProductionMode("multiQuestion");
+      $("questionUseCase").value = "review";
+      $("questionType").value = "段考複習";
+      $("questionTotalCount").value = 30;
+      $("questionBasicCount").value = 12;
+      $("questionMiddleCount").value = 12;
+      $("questionChallengeCount").value = 6;
+      $("questionStyle").value = "exam";
+      $("questionLayout").value = "formal";
+    },
+    referenceHandout: () => {
+      applyProductionMode("singleHandout");
+      $("handoutAudience").value = "both";
+      $("handoutStyle").value = "referenceBlack";
+      $("handoutTypography").value = "ming11";
+      $("handoutExampleCount").value = 4;
+      $("handoutPracticeCount").value = 8;
+      $("handoutQuestionSource").value = "mixed";
+    },
+    juniorExam: () => {
+      applyProductionMode("multiQuestion");
+      $("questionUseCase").value = "review";
+      $("questionType").value = "段考複習";
+      $("questionTotalCount").value = 25;
+      $("questionBasicCount").value = 10;
+      $("questionMiddleCount").value = 10;
+      $("questionChallengeCount").value = 5;
+      $("questionStyle").value = "gray";
+      $("questionLayout").value = "bw";
+    },
+    bothPackage: () => {
+      applyProductionMode("questionHandout");
+      $("questionOutput").value = "pdf";
+      $("handoutAudience").value = "both";
+      $("handoutQuestionSource").value = "mixed";
+    }
+  };
+  presets[preset]?.();
+  syncSharedScopeToTools();
+  buildQuestionPrompt();
+  buildHandoutPrompt();
+  renderProductionFinalSummary();
+  toast("已套用常用組合");
+}
+
+function renderProductionScopeCache() {
+  const wrap = $("productionScopeCacheList");
+  if (!wrap) return;
+  $("productionScopeCacheCount").textContent = productionScopeCache.length;
+  if (!productionScopeCache.length) {
+    wrap.innerHTML = `<div class="empty compact-empty">目前沒有暫存製作範圍；若只做單一單元，可直接產生結果。</div>`;
+    renderProductionFinalSummary();
+    return;
+  }
+  productionScopeCache = productionScopeCache.map(normalizeProductionScopeItem);
+  wrap.innerHTML = productionScopeCache.map((item, index) => `
+    <div class="cache-item production-scope-item ${item.enabled === false ? "disabled" : ""}">
+      <label class="scope-use-check">
+        <input type="checkbox" data-toggle-production-scope="${escapeHtml(item.id)}" ${item.enabled === false ? "" : "checked"}>
+        <span>使用</span>
+      </label>
+      <div class="cache-text">
+        <strong>${escapeHtml(item.grade)} ${escapeHtml(item.subject)}</strong>
+        <span>${escapeHtml(productionScopePath(item))}</span>
+      </div>
+      <label class="scope-count-field">
+        <span>題數</span>
+        <input type="number" min="0" max="99" value="${escapeHtml(item.questionCount)}" data-production-scope-count="${escapeHtml(item.id)}" placeholder="自動">
+      </label>
+      <div class="scope-order-actions">
+        <button class="secondary mini-btn" type="button" data-move-production-scope="${escapeHtml(item.id)}" data-scope-direction="-1" ${index === 0 ? "disabled" : ""}>上移</button>
+        <button class="secondary mini-btn" type="button" data-move-production-scope="${escapeHtml(item.id)}" data-scope-direction="1" ${index === productionScopeCache.length - 1 ? "disabled" : ""}>下移</button>
+        <button class="secondary danger-text mini-btn" type="button" data-remove-production-scope="${escapeHtml(item.id)}">刪除</button>
+      </div>
+    </div>
+  `).join("");
+  renderProductionFinalSummary();
+}
+
 function saveHomeworkPhrases() {
   writeJson(STORAGE.homeworkPhrases, homeworkPhrases);
   renderHomeworkPhrases();
@@ -1210,8 +1510,9 @@ function buildBatchOutput() {
   $("batchOutputText").classList.toggle("collapsed", !blocks.length);
   $("batchOutputPreview").classList.toggle("muted", !blocks.length);
   $("batchOutputPreview").textContent = blocks.length
-    ? `已產生：${summary.join("、")}。可直接複製全部結果。`
+    ? `已產生：${summary.join("、")}；${usingProductionScopeCache() ? `跨 ${productionScopeItemsForPrompt().length} 個範圍` : "單一範圍"}。可直接複製全部結果。`
     : "請至少勾選一個輸出項目。";
+  renderProductionFinalSummary();
   toast("已產生勾選項目");
 }
 
@@ -1236,6 +1537,7 @@ function updateProductionTaskVisibility() {
     $("batchOutputPreview").classList.add("muted");
     $("batchOutputPreview").textContent = "尚未產生結果。";
   }
+  renderProductionFinalSummary();
 }
 
 function initQuestionBuilder() {
@@ -1335,6 +1637,7 @@ function questionBankSubjectName(grade, subject) {
 }
 
 function questionKeywordParts() {
+  if (usingProductionScopeCache()) return productionScopeKeywordParts();
   const manual = $("questionKeyword").value.trim();
   const topics = Array.from(questionSelectedTopics);
   return [
@@ -1348,6 +1651,7 @@ function questionKeywordParts() {
 function questionSpec() {
   const grade = $("questionGrade").value;
   const subject = $("questionSubject").value;
+  const scopeItems = productionScopeItemsForPrompt();
   const basic = Number($("questionBasicCount").value || 0);
   const middle = Number($("questionMiddleCount").value || 0);
   const challenge = Number($("questionChallengeCount").value || 0);
@@ -1362,6 +1666,7 @@ function questionSpec() {
     chapter: $("questionChapter").value,
     section: $("questionSection").value,
     topics: Array.from(questionSelectedTopics),
+    scopeItems,
     keyword: questionKeywordParts().join(" "),
     candidateCount: Number($("questionCandidateCount").value || 30),
     totalCount: total,
@@ -1406,11 +1711,12 @@ function syncQuestionModeButtons() {
 
 function updateQuestionCurrentSummary(spec = questionSpec()) {
   if (!$("questionCurrentSummary")) return;
-  const topicText = spec.topics.length ? spec.topics.join("、") : "依章節與節名";
+  const topicText = usingProductionScopeCache()
+    ? [...new Set(spec.scopeItems.flatMap(item => item.topics || []))].join("、") || "依各範圍章節與節名"
+    : spec.topics.length ? spec.topics.join("、") : "依章節與節名";
   $("questionCurrentTitle").textContent = `${spec.grade} ${spec.subject}｜${spec.type}`;
   $("questionCurrentSummary").innerHTML = [
-    `<p>${escapeHtml(spec.book)}</p>`,
-    `<p>${escapeHtml(spec.chapter)} / ${escapeHtml(spec.section)}</p>`,
+    `<p>${escapeHtml(productionScopeSummaryText(spec.scopeItems))}</p>`,
     `<p>${escapeHtml(questionUseCaseLabel(spec.useCase))}，${escapeHtml(spec.totalCount)} 題：基礎 ${escapeHtml(spec.difficulty.basic)}、中等 ${escapeHtml(spec.difficulty.middle)}、挑戰 ${escapeHtml(spec.difficulty.challenge)}</p>`,
     `<p>${escapeHtml(spec.styleLabel)} / ${escapeHtml(spec.layoutLabel)} / ${escapeHtml(spec.typographyLabel)}</p>`,
     `<p>知識點：${escapeHtml(topicText)}</p>`
@@ -1432,18 +1738,22 @@ function buildQuestionPrompt() {
   if (!$("questionPromptOutput")) return;
   const spec = questionSpec();
   updateQuestionCurrentSummary(spec);
-  const topicText = spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
+  const topicText = usingProductionScopeCache()
+    ? [...new Set(spec.scopeItems.flatMap(item => item.topics || []))].join("、") || "未指定，使用各範圍章節與節名"
+    : spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
   const isBankOriginal = spec.generationMode === "bankOriginal";
+  const rangeLines = productionScopePromptLines(spec.scopeItems);
+  const rangeLabel = usingProductionScopeCache() ? `跨 ${spec.scopeItems.length} 個範圍` : `${spec.book} / ${spec.chapter} / ${spec.section}`;
   const notes = spec.notes || (isBankOriginal
     ? "使用本機題庫原題，不改寫題幹與選項；僅整理成指定版型並附答案解析。"
     : "AI 生成仿題不要照抄原題；保留同一考點與難度，改數字、情境或問法。若原題明確標記為會考題，可以直接使用原題。");
   const opening = isBankOriginal
     ? [
-        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題，`,
+        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || rangeLabel}」相關題目 ${spec.candidateCount} 題，`,
         `直接篩選 ${spec.totalCount} 題本機題庫原題，製作成${spec.type}。`
       ]
     : [
-        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || spec.section || spec.chapter}」相關題目 ${spec.candidateCount} 題作為參考，`,
+        `請用本機題庫抓${spec.grade}${spec.subject}「${spec.keyword || rangeLabel}」相關題目 ${spec.candidateCount} 題作為參考，`,
         `幫我用 AI 生成 ${spec.totalCount} 題同考點仿題，製作成${spec.type}。`
       ];
   const requirementLines = isBankOriginal
@@ -1463,6 +1773,9 @@ function buildQuestionPrompt() {
         `每題附答案與詳細解析。`,
         `產出格式：${outputLabel(spec.output)}。`
       ];
+  if (usingProductionScopeCache()) {
+    requirementLines.push(`若為跨單元範圍，請平均涵蓋上列範圍；題目不足時可依教學重點調整比例，並在題庫參考摘要中註明。`);
+  }
   const prompt = [
     ...opening,
     ``,
@@ -1471,9 +1784,8 @@ function buildQuestionPrompt() {
     `科目：${spec.subject}`,
     `題庫 API subject：${spec.questionBankSubject}`,
     `level：${spec.level}`,
-    `課程 / 冊別：${spec.book}`,
-    `章節：${spec.chapter}`,
-    `節：${spec.section}`,
+    `製作範圍：${rangeLabel}`,
+    ...rangeLines,
     `知識點：${topicText}`,
     `搜尋關鍵字：${spec.keyword}`,
     `出題方式：${questionGenerationModeLabel(spec.generationMode)}`,
@@ -1499,6 +1811,7 @@ function buildQuestionPrompt() {
   ].join("\n");
   $("questionPromptOutput").value = prompt;
   $("questionSearchSummary").textContent = `${questionGenerationModeLabel(spec.generationMode)} / ${spec.level} / ${spec.questionBankSubject} / ${spec.keyword || "未填關鍵字"} / ${spec.candidateCount} -> ${spec.totalCount} / ${spec.styleLabel} / ${spec.layoutLabel} / ${spec.typographyLabel}`;
+  renderProductionFinalSummary();
 }
 
 async function copyQuestionPrompt() {
@@ -1674,6 +1987,7 @@ function handoutQuestionSourceLabel(value) {
 
 function handoutSpec() {
   const title = $("handoutTitleInput").value.trim() || `${$("handoutChapter").value}：${$("handoutSection").value}`;
+  const scopeItems = productionScopeItemsForPrompt();
   return {
     grade: $("handoutGrade").value,
     subject: $("handoutSubject").value,
@@ -1683,7 +1997,10 @@ function handoutSpec() {
     title,
     audience: $("handoutAudience").value,
     style: $("handoutStyle").value,
+    typography: $("handoutTypography").value,
+    typographyLabel: TYPOGRAPHY_LABELS[$("handoutTypography").value] || $("handoutTypography").value,
     topics: Array.from(handoutSelectedTopics),
+    scopeItems,
     include: {
       toc: $("handoutIncludeToc").checked,
       concepts: $("handoutIncludeConcepts").checked,
@@ -1752,6 +2069,7 @@ function applyHandoutExample(exampleId) {
   $("handoutTitleInput").value = example.title || "";
   $("handoutAudience").value = example.audience || "both";
   $("handoutStyle").value = example.style || "softGray";
+  $("handoutTypography").value = example.typography || "kai12";
   $("handoutExampleCount").value = example.exampleCount ?? 2;
   $("handoutPracticeCount").value = example.practiceCount ?? 4;
   $("handoutCalculationCount").value = example.questionCounts?.calculation ?? 5;
@@ -1799,8 +2117,12 @@ function deleteHandoutExample(exampleId) {
 function buildHandoutPrompt() {
   if (!$("handoutPromptOutput")) return;
   const spec = handoutSpec();
-  const topicText = spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
-  const bankKeyword = [spec.chapter, spec.section, ...spec.topics].filter(Boolean).join(" ");
+  const topicText = usingProductionScopeCache()
+    ? [...new Set(spec.scopeItems.flatMap(item => item.topics || []))].join("、") || "未指定，使用各範圍章節與節名"
+    : spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
+  const rangeLines = productionScopePromptLines(spec.scopeItems);
+  const rangeLabel = usingProductionScopeCache() ? `跨 ${spec.scopeItems.length} 個範圍` : `${spec.book} / ${spec.chapter} / ${spec.section}`;
+  const bankKeyword = productionScopeKeywordParts(spec.scopeItems).join(" ");
   const questionSourceInstructions = {
     original: [
       `題目來源：自創題目。`,
@@ -1834,13 +2156,13 @@ function buildHandoutPrompt() {
     `講義基本資料：`,
     `年級：${spec.grade}`,
     `科目：${spec.subject}`,
-    `課程 / 冊別：${spec.book}`,
-    `章節：${spec.chapter}`,
-    `節：${spec.section}`,
+    `製作範圍：${rangeLabel}`,
+    ...rangeLines,
     `知識點：${topicText}`,
     `版本：${handoutAudienceLabel(spec.audience)}`,
     `版型：${handoutStyleLabel(spec.style)}`,
     `題目來源：${handoutQuestionSourceLabel(spec.questionSource)}`,
+    usingProductionScopeCache() ? `跨單元要求：請整合上列範圍製作成連貫講義，可依概念順序重新排序，但不可漏掉已選範圍。` : "",
     ``,
     `內容結構：`,
     `請包含：${includeText}`,
@@ -1867,6 +2189,8 @@ function buildHandoutPrompt() {
     ``,
     `排版要求：`,
     ...handoutStyleInstructions(spec.style),
+    `字體：${spec.typographyLabel}`,
+    `Word 講義請以此字體設定為正文、題目、表格與解析的基準；標題、大標、小標可依階層加大，但需保持整份講義一致。`,
     `範例、解題步驟、隨堂演練、答案解析請用可複製模組呈現。`,
     `需要目錄時，請使用 Word 可更新的目錄欄位。`,
     ``,
@@ -1874,7 +2198,8 @@ function buildHandoutPrompt() {
     spec.notes || "無；請依課程範圍自行整理成適合上課使用的講義。"
   ].join("\n");
   $("handoutPromptOutput").value = prompt;
-  $("handoutSummary").textContent = `${spec.grade}${spec.subject} / ${spec.book} / ${spec.chapter} ${spec.section} / ${handoutStyleLabel(spec.style)} / ${handoutAudienceLabel(spec.audience)}`;
+  $("handoutSummary").textContent = `${spec.grade}${spec.subject} / ${usingProductionScopeCache() ? `跨 ${spec.scopeItems.length} 個範圍` : `${spec.book} / ${spec.chapter} ${spec.section}`} / ${handoutStyleLabel(spec.style)} / ${spec.typographyLabel} / ${handoutAudienceLabel(spec.audience)}`;
+  renderProductionFinalSummary();
 }
 
 async function copyHandoutPrompt() {
@@ -2589,6 +2914,8 @@ function bindEvents() {
   $("sharedChapter").addEventListener("change", renderSharedSections);
   $("sharedSection").addEventListener("change", renderSharedTopics);
   $("sharedKeyword").addEventListener("input", syncSharedScopeToTools);
+  $("addProductionScopeBtn").addEventListener("click", addCurrentProductionScope);
+  $("clearProductionScopeBtn").addEventListener("click", () => clearProductionScopeCache(true));
   $("buildBatchOutputBtn").addEventListener("click", buildBatchOutput);
   $("copyBatchOutputBtn").addEventListener("click", copyBatchOutput);
   ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout"].forEach(id => {
@@ -2598,6 +2925,7 @@ function bindEvents() {
       $("batchOutputText").classList.add("collapsed");
       $("batchOutputPreview").classList.add("muted");
       $("batchOutputPreview").textContent = "尚未產生結果。";
+      renderProductionFinalSummary();
     });
   });
   $("filenameType").addEventListener("change", () => {
@@ -2680,7 +3008,7 @@ function bindEvents() {
     "handoutAudience", "handoutTitleInput", "handoutExampleCount", "handoutPracticeCount",
     "handoutCalculationCount", "handoutConceptQuestionCount", "handoutThinkingQuestionCount",
     "handoutQuestionSource", "handoutQuestionCandidateCount",
-    "handoutStyle", "handoutIncludeToc", "handoutIncludeConcepts", "handoutIncludeExamples",
+    "handoutStyle", "handoutTypography", "handoutIncludeToc", "handoutIncludeConcepts", "handoutIncludeExamples",
     "handoutIncludePractice", "handoutIncludeAnswers", "handoutIncludeTeacherNotes", "handoutNotes"
   ].forEach(id => {
     $(id).addEventListener("input", buildHandoutPrompt);
@@ -2726,6 +3054,8 @@ function bindEvents() {
     if (target.dataset.progressSearch) lineAppend("progress", decodeURIComponent(target.dataset.progressSearch));
     if (target.dataset.cacheProgressTopic) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressTopic));
     if (target.dataset.cacheProgressSearch) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressSearch));
+    if (target.dataset.productionMode) applyProductionMode(target.dataset.productionMode);
+    if (target.dataset.productionPreset) applyProductionPreset(target.dataset.productionPreset);
     if (target.dataset.homework) phraseAppend("homework", target.dataset.homework);
     if (target.dataset.quiz) phraseAppend("quiz", target.dataset.quiz);
     if (target.dataset.sharedTopic) toggleSharedTopic(target.dataset.sharedTopic, target);
@@ -2736,6 +3066,9 @@ function bindEvents() {
     if (target.dataset.template) applyTemplate(target.dataset.template);
     if (target.dataset.deleteTemplate && confirm("確定刪除這個班級模板嗎？")) deleteTemplate(target.dataset.deleteTemplate);
     if (target.dataset.removeProgressCache) removeProgressCacheItem(target.dataset.removeProgressCache);
+    if (target.dataset.toggleProductionScope) toggleProductionScopeItem(target.dataset.toggleProductionScope, target.checked);
+    if (target.dataset.removeProductionScope) removeProductionScopeItem(target.dataset.removeProductionScope);
+    if (target.dataset.moveProductionScope) moveProductionScopeItem(target.dataset.moveProductionScope, Number(target.dataset.scopeDirection || 0));
     if (target.dataset.deleteHomeworkPhrase && confirm("確定刪除這個作業片語嗎？")) deleteHomeworkPhrase(target.dataset.deleteHomeworkPhrase);
     if (target.dataset.load) loadLog(target.dataset.load);
     if (target.dataset.copy) copyLog(target.dataset.copy);
@@ -2761,6 +3094,7 @@ function bindEvents() {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     if (target.dataset.courseFixNoteId) updateCourseFixNote(target.dataset.courseFixNoteId, target.value);
+    if (target.dataset.productionScopeCount) updateProductionScopeQuestionCount(target.dataset.productionScopeCount, target.value);
   });
 
   ["grade", "subject", "classType", "className", "date", "progress", "pages", "quiz", "homework", "outputMode"]
@@ -2815,6 +3149,7 @@ bindEvents();
 updatePreviewSizeClass();
 renderTemplates();
 renderProgressCache();
+renderProductionScopeCache();
 renderHomeworkPhrases();
 renderHandoutExamples();
 renderArchives();

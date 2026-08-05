@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20260802-production-ui">
+  <link rel="stylesheet" href="styles.css?v=20260805-production-workflow">
 </head>
 <body>
   <header class="app-header">
@@ -272,6 +272,67 @@
             <span id="sharedTopicCount" class="badge">0</span>
           </div>
           <div id="sharedTopicChoices" class="topic-list">課程資料載入中...</div>
+        </div>
+        <div class="production-scope-actions">
+          <button id="addProductionScopeBtn" class="primary-action" type="button">加入製作範圍</button>
+          <button id="clearProductionScopeBtn" class="secondary danger-text" type="button">清空範圍</button>
+        </div>
+        <div class="cache-box production-cache-box" aria-labelledby="productionScopeCacheTitle">
+          <div class="cache-head">
+            <div>
+              <strong id="productionScopeCacheTitle">已選製作範圍</strong>
+              <p>可跨章節、跨單元暫存；產生題目或講義時會一併帶入。</p>
+            </div>
+            <span id="productionScopeCacheCount" class="badge">0</span>
+          </div>
+          <div id="productionScopeCacheList" class="cache-list"></div>
+        </div>
+      </section>
+
+      <section class="form-section production-mode-section" aria-labelledby="productionModeTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="productionModeTitle">製作模式</h2>
+            <p>先選工作型態，系統會自動勾選合適輸出。</p>
+          </div>
+        </div>
+        <div class="production-mode-grid" role="group" aria-label="製作模式">
+          <button class="mode-card active" type="button" data-production-mode="singleQuestion">
+            <strong>單元題目</strong>
+            <span>目前範圍，產生一份測驗指令。</span>
+          </button>
+          <button class="mode-card" type="button" data-production-mode="multiQuestion">
+            <strong>跨單元題目</strong>
+            <span>使用已選範圍，產生跨單元題目。</span>
+          </button>
+          <button class="mode-card" type="button" data-production-mode="singleHandout">
+            <strong>單元講義</strong>
+            <span>目前範圍，產生講義指令。</span>
+          </button>
+          <button class="mode-card" type="button" data-production-mode="multiHandout">
+            <strong>跨單元講義</strong>
+            <span>整合已選範圍成連貫講義。</span>
+          </button>
+          <button class="mode-card" type="button" data-production-mode="questionHandout">
+            <strong>題目＋講義</strong>
+            <span>同時輸出題目與講義指令。</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="form-section production-preset-section" aria-labelledby="productionPresetTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="productionPresetTitle">常用組合</h2>
+            <p>快速套用常見製作設定，仍可再微調。</p>
+          </div>
+        </div>
+        <div class="production-preset-row">
+          <button class="chip quiet" type="button" data-production-preset="quiz20">隨堂測驗 20 題</button>
+          <button class="chip quiet" type="button" data-production-preset="examReview">跨單元段考複習</button>
+          <button class="chip quiet" type="button" data-production-preset="referenceHandout">高三參考書講義</button>
+          <button class="chip quiet" type="button" data-production-preset="juniorExam">國中會考複習</button>
+          <button class="chip quiet" type="button" data-production-preset="bothPackage">題目＋講義包</button>
         </div>
       </section>
 
@@ -610,7 +671,8 @@
             </div>
           </section>
 
-          <section class="form-section" aria-labelledby="questionOutputTitle">
+          <details class="form-section advanced-section" aria-labelledby="questionOutputTitle">
+            <summary>進階輸出設定</summary>
             <div class="section-head compact">
               <div>
                 <h2 id="questionOutputTitle">輸出</h2>
@@ -652,10 +714,31 @@
               <label>
                 <span>字體設定</span>
                 <select id="questionTypography">
-                  <option value="kai12">標楷體 12 pt</option>
-                  <option value="kai11">標楷體 11 pt</option>
-                  <option value="jhenghei12">微軟正黑體 12 pt</option>
-                  <option value="jhenghei11">微軟正黑體 11 pt</option>
+                  <optgroup label="標楷體">
+                    <option value="kai14">標楷體 14 pt</option>
+                    <option value="kai13">標楷體 13 pt</option>
+                    <option value="kai12" selected>標楷體 12 pt</option>
+                    <option value="kai11">標楷體 11 pt</option>
+                    <option value="kai105">標楷體 10.5 pt</option>
+                  </optgroup>
+                  <optgroup label="微軟正黑體">
+                    <option value="jhenghei14">微軟正黑體 14 pt</option>
+                    <option value="jhenghei13">微軟正黑體 13 pt</option>
+                    <option value="jhenghei12">微軟正黑體 12 pt</option>
+                    <option value="jhenghei11">微軟正黑體 11 pt</option>
+                    <option value="jhenghei105">微軟正黑體 10.5 pt</option>
+                  </optgroup>
+                  <optgroup label="新細明體">
+                    <option value="ming12">新細明體 12 pt</option>
+                    <option value="ming11">新細明體 11 pt</option>
+                    <option value="ming105">新細明體 10.5 pt</option>
+                  </optgroup>
+                  <optgroup label="思源字型">
+                    <option value="sourceHanSans12">思源黑體 12 pt</option>
+                    <option value="sourceHanSans11">思源黑體 11 pt</option>
+                    <option value="sourceHanSerif12">思源宋體 12 pt</option>
+                    <option value="sourceHanSerif11">思源宋體 11 pt</option>
+                  </optgroup>
                 </select>
               </label>
             </div>
@@ -663,7 +746,7 @@
               <span>補充要求</span>
               <textarea id="questionNotes" rows="3" placeholder="例：仿題不要照抄原題；每題都要附學生看得懂的解析；公式請盡量整理成標準格式。"></textarea>
             </label>
-          </section>
+          </details>
         </div>
 
         <aside class="question-current-card" aria-labelledby="questionCurrentTitle">
@@ -780,47 +863,83 @@
           <span>隨堂演練數</span>
           <input id="handoutPracticeCount" type="number" min="0" max="20" value="4">
         </label>
-        <label>
-          <span>講義風格</span>
-          <select id="handoutStyle">
-            <option value="softGray">灰階章節分隔</option>
-            <option value="modulePack">灰階模組包</option>
-            <option value="freshBlue">清爽青藍細線</option>
-            <option value="referenceBlack">黑白參考書分隔線</option>
-            <option value="referenceFormula">黑白參考書＋LaTeX公式</option>
-          </select>
-        </label>
       </div>
 
-      <div class="field-grid three compact-fields">
-        <label>
-          <span>科學素養計算題</span>
-          <input id="handoutCalculationCount" type="number" min="0" max="30" value="5">
-        </label>
-        <label>
-          <span>科學素養觀念題</span>
-          <input id="handoutConceptQuestionCount" type="number" min="0" max="30" value="5">
-        </label>
-        <label>
-          <span>科學素養思考題</span>
-          <input id="handoutThinkingQuestionCount" type="number" min="0" max="30" value="5">
-        </label>
-      </div>
+      <details class="form-section advanced-section">
+        <summary>進階講義設定</summary>
+        <div class="field-grid two compact-fields">
+          <label>
+            <span>講義風格</span>
+            <select id="handoutStyle">
+              <option value="softGray">灰階章節分隔</option>
+              <option value="modulePack">灰階模組包</option>
+              <option value="freshBlue">清爽青藍細線</option>
+              <option value="referenceBlack">黑白參考書分隔線</option>
+              <option value="referenceFormula">黑白參考書＋LaTeX公式</option>
+            </select>
+          </label>
+          <label>
+            <span>字體設定</span>
+            <select id="handoutTypography">
+              <optgroup label="標楷體">
+                <option value="kai14">標楷體 14 pt</option>
+                <option value="kai13">標楷體 13 pt</option>
+                <option value="kai12" selected>標楷體 12 pt</option>
+                <option value="kai11">標楷體 11 pt</option>
+                <option value="kai105">標楷體 10.5 pt</option>
+              </optgroup>
+              <optgroup label="微軟正黑體">
+                <option value="jhenghei14">微軟正黑體 14 pt</option>
+                <option value="jhenghei13">微軟正黑體 13 pt</option>
+                <option value="jhenghei12">微軟正黑體 12 pt</option>
+                <option value="jhenghei11">微軟正黑體 11 pt</option>
+                <option value="jhenghei105">微軟正黑體 10.5 pt</option>
+              </optgroup>
+              <optgroup label="新細明體">
+                <option value="ming12">新細明體 12 pt</option>
+                <option value="ming11">新細明體 11 pt</option>
+                <option value="ming105">新細明體 10.5 pt</option>
+              </optgroup>
+              <optgroup label="思源字型">
+                <option value="sourceHanSans12">思源黑體 12 pt</option>
+                <option value="sourceHanSans11">思源黑體 11 pt</option>
+                <option value="sourceHanSerif12">思源宋體 12 pt</option>
+                <option value="sourceHanSerif11">思源宋體 11 pt</option>
+              </optgroup>
+            </select>
+          </label>
+        </div>
 
-      <div class="field-grid two compact-fields">
-        <label>
-          <span>題目來源</span>
-          <select id="handoutQuestionSource">
-            <option value="mixed">題庫＋自創混合</option>
-            <option value="bank">優先從題庫提取</option>
-            <option value="original">自創題目</option>
-          </select>
-        </label>
-        <label>
-          <span>題庫候選題</span>
-          <input id="handoutQuestionCandidateCount" type="number" min="0" max="120" value="30">
-        </label>
-      </div>
+        <div class="field-grid three compact-fields">
+          <label>
+            <span>科學素養計算題</span>
+            <input id="handoutCalculationCount" type="number" min="0" max="30" value="5">
+          </label>
+          <label>
+            <span>科學素養觀念題</span>
+            <input id="handoutConceptQuestionCount" type="number" min="0" max="30" value="5">
+          </label>
+          <label>
+            <span>科學素養思考題</span>
+            <input id="handoutThinkingQuestionCount" type="number" min="0" max="30" value="5">
+          </label>
+        </div>
+
+        <div class="field-grid two compact-fields">
+          <label>
+            <span>題目來源</span>
+            <select id="handoutQuestionSource">
+              <option value="mixed">題庫＋自創混合</option>
+              <option value="bank">優先從題庫提取</option>
+              <option value="original">自創題目</option>
+            </select>
+          </label>
+          <label>
+            <span>題庫候選題</span>
+            <input id="handoutQuestionCandidateCount" type="number" min="0" max="120" value="30">
+          </label>
+        </div>
+      </details>
 
       <div class="check-grid">
         <label class="checkline"><input id="handoutIncludeToc" type="checkbox" checked><span>加入目錄</span></label>
@@ -868,6 +987,7 @@
         <button id="copyBatchOutputBtn" class="secondary" type="button">複製全部結果</button>
       </div>
       <div id="batchOutputPreview" class="batch-output-preview muted">尚未產生結果。</div>
+      <div id="productionFinalSummary" class="production-final-summary"></div>
       <textarea id="batchOutputText" class="batch-output-text collapsed" rows="10" readonly placeholder="按「產生勾選項目」後，這裡會彙整檔名、題目指令與講義指令。"></textarea>
     </section>
 
@@ -1093,6 +1213,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20260802-production-ui"></script>
+  <script src="app.js?v=20260805-production-workflow"></script>
 </body>
 </html>
