@@ -134,6 +134,16 @@ function bookMatchesGrade(book, grade) {
 }
 
 const COURSE_COLLATOR = new Intl.Collator("zh-Hant", { numeric: true, sensitivity: "base" });
+const SUBJECT_ORDER = ["數學", "物理", "化學", "生物", "地科", "國文", "英文", "歷史", "地理", "公民"];
+const SUBJECT_RANK = new Map(SUBJECT_ORDER.map((subject, index) => [subject, index]));
+
+function sortSubjects(subjects) {
+  return [...subjects].sort((a, b) => {
+    const rankA = SUBJECT_RANK.has(a) ? SUBJECT_RANK.get(a) : 999;
+    const rankB = SUBJECT_RANK.has(b) ? SUBJECT_RANK.get(b) : 999;
+    return rankA - rankB || COURSE_COLLATOR.compare(a, b);
+  });
+}
 
 function courseLevelRank(book) {
   const name = String(book || "");
@@ -151,6 +161,19 @@ function courseVersionName(book) {
   if (/^選修/.test(name)) return "選修";
   if (/^地球科學/.test(name)) return "地球科學";
   return name.replace(/\(.+?\)/g, "");
+}
+
+function seniorScienceCurriculumRank(book) {
+  const name = String(book || "").replace(/\s+/g, "");
+  if (/^基礎(?:物理|化學|生物)[（(]?全[）)]?/.test(name) || /^地球科學[（(]?全[）)]?/.test(name)) return 0;
+  if (/^選修(?:物理|化學|生物|地球科學|地科)[（(]?[IVX]+[）)]?/i.test(name)) return 1;
+  return 9;
+}
+
+function seniorMathVersionRank(book, subject = "") {
+  const name = String(book || "");
+  if (subject === "數學" && /^高中翰林版/.test(name)) return 0;
+  return 9;
 }
 
 function chineseNumberValue(text) {
@@ -194,9 +217,14 @@ function courseTermRank(book) {
   return 0;
 }
 
-function sortCourseBooks(books) {
+function sortCourseBooks(books, subject = "") {
   return [...books].sort((a, b) =>
     courseLevelRank(a) - courseLevelRank(b) ||
+    seniorMathVersionRank(a, subject) - seniorMathVersionRank(b, subject) ||
+    seniorScienceCurriculumRank(a) - seniorScienceCurriculumRank(b) ||
+    (seniorScienceCurriculumRank(a) < 9 && seniorScienceCurriculumRank(b) < 9
+      ? courseVolumeRank(a) - courseVolumeRank(b)
+      : 0) ||
     COURSE_COLLATOR.compare(courseVersionName(a), courseVersionName(b)) ||
     courseVolumeRank(a) - courseVolumeRank(b) ||
     courseYear(a) - courseYear(b) ||
@@ -205,16 +233,16 @@ function sortCourseBooks(books) {
   );
 }
 
-function booksForGrade(subjectNode, grade) {
+function booksForGrade(subjectNode, grade, subject = "") {
   const books = Object.keys(subjectNode?.books || {});
   const filtered = books.filter(book => bookMatchesGrade(book, grade));
-  return sortCourseBooks(filtered.length ? filtered : books);
+  return sortCourseBooks(filtered.length ? filtered : books, subject);
 }
 
 function subjectsForGrade(grade) {
   const subjects = Object.keys(filenameCourseData);
-  const filtered = subjects.filter(subject => booksForGrade(filenameCourseData[subject], grade).length);
-  return filtered.length ? filtered : subjects;
+  const filtered = subjects.filter(subject => booksForGrade(filenameCourseData[subject], grade, subject).length);
+  return sortSubjects(filtered.length ? filtered : subjects);
 }
 
 function setSelectOptions(selectId, values, preferred = "") {
@@ -1263,7 +1291,7 @@ function renderProgressSubjects() {
 }
 
 function renderProgressBooks() {
-  const books = booksForGrade(currentProgressSubject(), $("grade").value);
+  const books = booksForGrade(currentProgressSubject(), $("grade").value, $("progressSubject").value);
   setSelectOptions("progressBook", books, $("progressBook").value);
   renderProgressChapters();
 }
@@ -1372,7 +1400,7 @@ function renderSharedSubjects() {
 }
 
 function renderSharedBooks() {
-  const books = booksForGrade(currentSharedSubject(), $("sharedGrade").value);
+  const books = booksForGrade(currentSharedSubject(), $("sharedGrade").value, $("sharedSubject").value);
   setSelectOptions("sharedBook", books, $("sharedBook").value);
   renderSharedChapters();
 }
@@ -1553,7 +1581,7 @@ function renderQuestionSubjects() {
 }
 
 function renderQuestionBooks() {
-  const books = booksForGrade(currentQuestionSubject(), $("questionGrade").value);
+  const books = booksForGrade(currentQuestionSubject(), $("questionGrade").value, $("questionSubject").value);
   setSelectOptions("questionBook", books, $("questionBook").value);
   renderQuestionChapters();
 }
@@ -1859,7 +1887,7 @@ function renderHandoutSubjects() {
 }
 
 function renderHandoutBooks() {
-  const books = booksForGrade(currentHandoutSubject(), $("handoutGrade").value);
+  const books = booksForGrade(currentHandoutSubject(), $("handoutGrade").value, $("handoutSubject").value);
   setSelectOptions("handoutBook", books, $("handoutBook").value);
   renderHandoutChapters();
 }
@@ -2222,7 +2250,7 @@ function downloadHandoutSpec() {
 }
 
 function renderFilenameSubjects() {
-  const subjects = Object.keys(filenameCourseData);
+  const subjects = sortSubjects(Object.keys(filenameCourseData));
   $("filenameSubject").innerHTML = subjects.map(subject => `<option>${escapeHtml(subject)}</option>`).join("");
   if (subjects.includes($("subject").value)) {
     $("filenameSubject").value = $("subject").value;
@@ -2231,7 +2259,7 @@ function renderFilenameSubjects() {
 }
 
 function renderFilenameCourses() {
-  const books = sortCourseBooks(Object.keys(currentFilenameSubject().books || {}));
+  const books = sortCourseBooks(Object.keys(currentFilenameSubject().books || {}), $("filenameSubject").value);
   $("filenameCourse").innerHTML = books.map(book => `<option>${escapeHtml(book)}</option>`).join("");
   renderFilenameChapters();
   syncFilenameCourseAlias();
@@ -2429,7 +2457,7 @@ function initCourseReview() {
 }
 
 function renderCourseReviewSubjects() {
-  const subjects = Object.keys(filenameCourseData);
+  const subjects = sortSubjects(Object.keys(filenameCourseData));
   $("dataSubjectSelect").innerHTML = subjects.map(subject => `<option>${escapeHtml(subject)}</option>`).join("");
   if (subjects.includes($("subject").value)) {
     $("dataSubjectSelect").value = $("subject").value;
@@ -2441,7 +2469,7 @@ function currentCourseReviewSubject() {
 }
 
 function renderCourseReviewBooks() {
-  const books = sortCourseBooks(Object.keys(currentCourseReviewSubject().books || {}));
+  const books = sortCourseBooks(Object.keys(currentCourseReviewSubject().books || {}), $("dataSubjectSelect").value);
   $("dataBookSelect").innerHTML = books.map(book => `<option>${escapeHtml(book)}</option>`).join("");
 }
 
