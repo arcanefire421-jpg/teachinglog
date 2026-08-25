@@ -3077,13 +3077,15 @@ function bindEvents() {
   document.body.addEventListener("click", event => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const productionModeButton = target.closest("[data-production-mode]");
+    const productionPresetButton = target.closest("[data-production-preset]");
     if (target.dataset.progress) lineAppend("progress", target.dataset.progress);
     if (target.dataset.progressTopic) lineAppend("progress", decodeURIComponent(target.dataset.progressTopic));
     if (target.dataset.progressSearch) lineAppend("progress", decodeURIComponent(target.dataset.progressSearch));
     if (target.dataset.cacheProgressTopic) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressTopic));
     if (target.dataset.cacheProgressSearch) addProgressCacheItem(decodeURIComponent(target.dataset.cacheProgressSearch));
-    if (target.dataset.productionMode) applyProductionMode(target.dataset.productionMode);
-    if (target.dataset.productionPreset) applyProductionPreset(target.dataset.productionPreset);
+    if (productionModeButton) applyProductionMode(productionModeButton.dataset.productionMode);
+    if (productionPresetButton) applyProductionPreset(productionPresetButton.dataset.productionPreset);
     if (target.dataset.homework) phraseAppend("homework", target.dataset.homework);
     if (target.dataset.quiz) phraseAppend("quiz", target.dataset.quiz);
     if (target.dataset.sharedTopic) toggleSharedTopic(target.dataset.sharedTopic, target);
