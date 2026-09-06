@@ -609,7 +609,7 @@ button:hover { filter: brightness(.97); }
 
 .production-final-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
   margin: 10px 0;
 }

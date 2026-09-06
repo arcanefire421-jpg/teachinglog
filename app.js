@@ -900,6 +900,18 @@ function selectedOutputLabels() {
   return labels;
 }
 
+function activeProductionModeLabel() {
+  const active = document.querySelector("[data-production-mode].active");
+  return active?.querySelector("strong")?.textContent?.trim() || "未指定";
+}
+
+function productionJobCardTitle(scopeItems, outputItems) {
+  const first = scopeItems[0] || currentProductionScopeItem();
+  const scopeType = usingProductionScopeCache() ? "跨單元" : "單元";
+  const outputText = outputItems.length ? outputItems.join("＋") : "工作卡";
+  return `${first.grade}${first.subject}_${scopeType}_${outputText}`;
+}
+
 function buildCodexWorkCardPrompt() {
   syncSharedScopeToTools();
   const scopeItems = productionScopeItemsForPrompt();
@@ -907,8 +919,11 @@ function buildCodexWorkCardPrompt() {
   if ($("batchOutputFilename")?.checked) outputItems.push("檔名");
   if ($("batchOutputQuestion")?.checked) outputItems.push("題目 Word 測驗卷");
   if ($("batchOutputHandout")?.checked) outputItems.push("Word 講義");
-  const taskTitle = `${scopeItems[0]?.grade || $("sharedGrade").value}${scopeItems[0]?.subject || $("sharedSubject").value}_${usingProductionScopeCache() ? "跨單元" : "單元"}_${outputItems.join("＋") || "製作"}`;
+  const taskTitle = productionJobCardTitle(scopeItems, outputItems);
   const scopeLines = productionScopePromptLines(scopeItems).join("\n");
+  const outputLines = outputItems.length
+    ? outputItems.map((item, index) => `${index + 1}. ${item}`).join("\n")
+    : "1. 工作卡提示詞（僅整理任務範圍與執行規則）";
   const questionText = $("batchOutputQuestion")?.checked
     ? `題目設定：${questionGenerationModeLabel($("questionGenerationMode").value)}；${$("questionType").value}；共 ${$("questionTotalCount").value || 0} 題；基礎 ${$("questionBasicCount").value || 0}、中等 ${$("questionMiddleCount").value || 0}、挑戰 ${$("questionChallengeCount").value || 0}；${QUESTION_STYLE_LABELS[$("questionStyle").value] || $("questionStyle").value}／${QUESTION_LAYOUT_LABELS[$("questionLayout").value] || $("questionLayout").value}／${QUESTION_TYPOGRAPHY_LABELS[$("questionTypography").value] || $("questionTypography").value}`
     : "題目設定：未勾選題目輸出。";
@@ -919,30 +934,35 @@ function buildCodexWorkCardPrompt() {
     "【Codex 工作卡提示詞】",
     `請建立一張 Codex 工作卡，標題：${taskTitle}`,
     "",
-    "任務目標：",
-    `依照下列已選範圍，完成${outputItems.join("、") || "指定教材製作"}。請先讀取專案規則，再開始產出；只處理本工作卡列出的範圍與輸出，不要改動無關檔案。`,
+    "【任務卡基本資料】",
+    `任務名稱：${taskTitle}`,
+    `製作模式：${activeProductionModeLabel()}`,
+    `範圍型態：${usingProductionScopeCache() ? `跨 ${scopeItems.length} 個範圍` : "單一範圍"}`,
     "",
+    "【任務目標】",
+    `依照下列已選範圍，完成${outputItems.join("、") || "工作卡整理"}。請先讀取專案規則，再開始產出；只處理本工作卡列出的範圍與輸出，不要改動無關檔案。`,
+    "",
+    "【工作路徑】",
     "工作資料夾：",
     "D:\\Workspace\\Codex\\Projects\\製作題目",
-    "",
-    "Books 資料夾：",
-    "D:\\Workspace\\Books",
+    "講義輸出與題目輸出也使用 Codex 專案底下的新路徑；不要使用舊資料夾路徑。",
     "",
     "製作範圍：",
     scopeLines,
     "",
     "輸出項目：",
-    outputItems.length ? outputItems.map((item, index) => `${index + 1}. ${item}`).join("\n") : "未勾選，請先確認輸出項目。",
+    outputLines,
     "",
     questionText,
     handoutText,
     "",
-    "執行規則：",
+    "【硬規則】",
     "1. 若使用本機題庫，必須沿用 question_bank_client.py 與題庫 API，不要直接讀 SQLite。",
     "2. 大量抓完整題目時，先用 questions() 取得 ID，再用 questions_by_id() 批次取得完整題目。",
     "3. Word/PDF 產出後要回報完整路徑；需要轉 PDF 時使用英文暫存路徑避開 LibreOffice 中文路徑問題。",
     "4. 若候選題不足，明確回報不足數量，不要用 AI 題冒充本機題庫原題。",
-    "5. 完成後列出已產出檔案、題數/頁數檢查結果與任何不足。"
+    "5. 完成後列出已產出檔案、題數/頁數檢查結果與任何不足。",
+    "6. 若是正式講義，依專案規則區分學生可見內容與教師用內容，並做 Word/PDF 版面檢查。"
   ].join("\n");
 }
 
@@ -957,11 +977,15 @@ function renderProductionFinalSummary() {
   const handoutText = $("batchOutputHandout")?.checked
     ? `${handoutAudienceLabel($("handoutAudience").value)}，${handoutStyleLabel($("handoutStyle").value)}`
     : "未勾選講義";
+  const workCardText = $("batchOutputWorkCard")?.checked
+    ? "已產生可貼給 Codex 的工作卡提示詞"
+    : "未勾選工作卡";
   wrap.innerHTML = [
     `<div><span>範圍</span><strong>${escapeHtml(usingProductionScopeCache() ? `跨 ${scopeItems.length} 個範圍` : "單一範圍")}</strong></div>`,
     `<div><span>輸出</span><strong>${escapeHtml(outputs.join("、") || "尚未勾選")}</strong></div>`,
     `<div><span>題目</span><strong>${escapeHtml(questionText)}</strong></div>`,
-    `<div><span>講義</span><strong>${escapeHtml(handoutText)}</strong></div>`
+    `<div><span>講義</span><strong>${escapeHtml(handoutText)}</strong></div>`,
+    `<div><span>工作卡</span><strong>${escapeHtml(workCardText)}</strong></div>`
   ].join("");
 }
 
@@ -985,6 +1009,14 @@ function applyProductionMode(mode) {
   $("batchOutputHandout").checked = selected.handout;
   syncProductionModeButtons(mode);
   updateProductionTaskVisibility();
+  if ($("batchOutputText")) {
+    $("batchOutputText").value = "";
+    $("batchOutputText").classList.add("collapsed");
+  }
+  if ($("batchOutputPreview")) {
+    $("batchOutputPreview").classList.add("muted");
+    $("batchOutputPreview").textContent = "尚未產生結果。";
+  }
   renderProductionFinalSummary();
 }
 
@@ -1585,11 +1617,13 @@ function buildBatchOutput() {
     blocks.push(buildCodexWorkCardPrompt());
     summary.push("工作卡提示詞");
   }
-  $("batchOutputText").value = blocks.length ? blocks.join("\n\n---\n\n") : "請至少勾選一個輸出項目。";
-  $("batchOutputText").classList.toggle("collapsed", !blocks.length);
+  const outputText = $("batchOutputText");
+  outputText.value = blocks.length ? blocks.join("\n\n---\n\n") : "請至少勾選一個輸出項目。";
+  outputText.scrollTop = 0;
+  outputText.classList.toggle("collapsed", !blocks.length);
   $("batchOutputPreview").classList.toggle("muted", !blocks.length);
   $("batchOutputPreview").textContent = blocks.length
-    ? `已產生：${summary.join("、")}；${usingProductionScopeCache() ? `跨 ${productionScopeItemsForPrompt().length} 個範圍` : "單一範圍"}。可直接複製全部結果。`
+    ? `已產生：${summary.join("、")}；${usingProductionScopeCache() ? `跨 ${productionScopeItemsForPrompt().length} 個範圍` : "單一範圍"}。${$("batchOutputWorkCard")?.checked ? "工作卡提示詞已放入下方欄位。" : ""}可直接複製全部結果。`
     : "請至少勾選一個輸出項目。";
   renderProductionFinalSummary();
   toast("已產生勾選項目");
@@ -1599,6 +1633,18 @@ async function copyBatchOutput() {
   if (!$("batchOutputText").value.trim()) buildBatchOutput();
   await navigator.clipboard.writeText($("batchOutputText").value);
   toast("已複製全部結果");
+}
+
+function downloadWorkCardMarkdown() {
+  if (!$("batchOutputWorkCard")?.checked) {
+    $("batchOutputWorkCard").checked = true;
+  }
+  const text = buildCodexWorkCardPrompt();
+  const scopeItems = productionScopeItemsForPrompt();
+  const outputItems = selectedOutputLabels().filter(label => label !== "工作卡提示詞");
+  const filename = `Codex工作卡_${cleanFilenamePart(productionJobCardTitle(scopeItems, outputItems))}_${todayIso()}.md`;
+  downloadTextFile(filename, text);
+  toast("已下載工作卡 Markdown");
 }
 
 function updateProductionTaskVisibility() {
@@ -2997,6 +3043,14 @@ function bindEvents() {
   $("clearProductionScopeBtn").addEventListener("click", () => clearProductionScopeCache(true));
   $("buildBatchOutputBtn").addEventListener("click", buildBatchOutput);
   $("copyBatchOutputBtn").addEventListener("click", copyBatchOutput);
+  $("downloadWorkCardBtn").addEventListener("click", downloadWorkCardMarkdown);
+  document.querySelectorAll("[data-production-mode]").forEach(button => {
+    button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      applyProductionMode(button.dataset.productionMode);
+    });
+  });
   ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout", "batchOutputWorkCard"].forEach(id => {
     const outputToggle = $(id);
     if (!outputToggle) return;

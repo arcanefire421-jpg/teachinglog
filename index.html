@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20260906-production-work-card-fix">
+  <link rel="stylesheet" href="styles.css?v=20260906-work-card-merge">
 </head>
 <body>
   <header class="app-header">
@@ -990,10 +990,11 @@
       <div class="toolbar question-actions">
         <button id="buildBatchOutputBtn" class="primary-action" type="button">產生勾選項目</button>
         <button id="copyBatchOutputBtn" class="secondary" type="button">複製全部結果</button>
+        <button id="downloadWorkCardBtn" class="secondary" type="button">下載工作卡 Markdown</button>
       </div>
       <div id="batchOutputPreview" class="batch-output-preview muted">尚未產生結果。</div>
       <div id="productionFinalSummary" class="production-final-summary"></div>
-      <textarea id="batchOutputText" class="batch-output-text collapsed" rows="10" readonly placeholder="按「產生勾選項目」後，這裡會彙整檔名、題目指令與講義指令。"></textarea>
+      <textarea id="batchOutputText" class="batch-output-text collapsed" rows="10" readonly placeholder="按「產生勾選項目」後，這裡會彙整檔名、題目指令、講義指令與工作卡。"></textarea>
     </section>
 
     <section class="panel archive-panel" data-workspace-view="progress" aria-labelledby="archiveTitle">
@@ -1218,6 +1219,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20260906-production-work-card-fix"></script>
+  <script src="app.js?v=20260906-work-card-merge"></script>
 </body>
 </html>
