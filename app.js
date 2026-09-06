@@ -928,7 +928,7 @@ function buildCodexWorkCardPrompt() {
     ? `題目設定：${questionGenerationModeLabel($("questionGenerationMode").value)}；${$("questionType").value}；共 ${$("questionTotalCount").value || 0} 題；基礎 ${$("questionBasicCount").value || 0}、中等 ${$("questionMiddleCount").value || 0}、挑戰 ${$("questionChallengeCount").value || 0}；${QUESTION_STYLE_LABELS[$("questionStyle").value] || $("questionStyle").value}／${QUESTION_LAYOUT_LABELS[$("questionLayout").value] || $("questionLayout").value}／${QUESTION_TYPOGRAPHY_LABELS[$("questionTypography").value] || $("questionTypography").value}`
     : "題目設定：未勾選題目輸出。";
   const handoutText = $("batchOutputHandout")?.checked
-    ? `講義設定：${handoutAudienceLabel($("handoutAudience").value)}；${handoutStyleLabel($("handoutStyle").value)}；範例 ${$("handoutExampleCount").value || 0} 題；隨堂演練 ${$("handoutPracticeCount").value || 0} 題；${HANDOUT_TYPOGRAPHY_LABELS[$("handoutTypography").value] || $("handoutTypography").value}`
+    ? `講義設定：${handoutAudienceLabel($("handoutAudience").value)}；${handoutStyleLabel($("handoutStyle").value)}；範例 ${$("handoutExampleCount").value || 0} 題；隨堂演練 ${$("handoutPracticeCount").value || 0} 題；${TYPOGRAPHY_LABELS[$("handoutTypography").value] || $("handoutTypography").value}`
     : "講義設定：未勾選講義輸出。";
   return [
     "【Codex 工作卡提示詞】",
