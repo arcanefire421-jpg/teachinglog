@@ -2998,7 +2998,9 @@ function bindEvents() {
   $("buildBatchOutputBtn").addEventListener("click", buildBatchOutput);
   $("copyBatchOutputBtn").addEventListener("click", copyBatchOutput);
   ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout", "batchOutputWorkCard"].forEach(id => {
-    $(id).addEventListener("change", () => {
+    const outputToggle = $(id);
+    if (!outputToggle) return;
+    outputToggle.addEventListener("change", () => {
       updateProductionTaskVisibility();
       $("batchOutputText").value = "";
       $("batchOutputText").classList.add("collapsed");
