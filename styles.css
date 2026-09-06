@@ -1661,6 +1661,19 @@ button:hover { filter: brightness(.97); }
   font-size: 1.05rem;
 }
 
+.codex-work-card {
+  border-color: #9db8f5;
+  background: linear-gradient(180deg, #f7faff 0%, #ffffff 100%);
+}
+
+.codex-work-card h3 {
+  color: var(--blue);
+}
+
+.codex-work-card dd {
+  overflow-wrap: anywhere;
+}
+
 .offline-list {
   display: grid;
   gap: 8px;

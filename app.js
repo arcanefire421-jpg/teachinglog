@@ -2813,6 +2813,16 @@ function openOfflineUrl(url) {
   window.open(url, "_blank", "noopener");
 }
 
+async function copyCodexThreadLink(url) {
+  await navigator.clipboard.writeText(url);
+  toast("已複製 Codex 工作連結");
+}
+
+function openCodexThread(url) {
+  window.location.href = url;
+  toast("正在開啟 Codex 工作");
+}
+
 function exportCourseReviewSubjectCsv() {
   const subject = $("dataSubjectSelect").value;
   const rows = [["科目", "冊別/教材", "章", "節", "小重點"]];
@@ -3118,6 +3128,8 @@ function bindEvents() {
     if (target.dataset.useProgressPath) useCourseReviewPath(decodeURIComponent(target.dataset.useProgressPath));
     if (target.dataset.copyOffline) copyOfflinePath(target.dataset.copyOffline);
     if (target.dataset.openOffline) openOfflineUrl(target.dataset.openOffline);
+    if (target.dataset.copyCodexThread) copyCodexThreadLink(target.dataset.copyCodexThread);
+    if (target.dataset.openCodexThread) openCodexThread(target.dataset.openCodexThread);
   });
 
   document.body.addEventListener("input", event => {

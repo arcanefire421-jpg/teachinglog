@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20260816-codex-paths">
+  <link rel="stylesheet" href="styles.css?v=20260906-codex-work-card">
 </head>
 <body>
   <header class="app-header">
@@ -1178,6 +1178,27 @@
           </div>
         </article>
 
+        <article class="offline-card codex-work-card">
+          <div>
+            <h3>Codex 工作卡</h3>
+            <p>直接回到指定 Codex 工作，接續講義、題目或網站調整。</p>
+          </div>
+          <dl class="offline-list">
+            <div>
+              <dt>工作 ID</dt>
+              <dd>01a06aa4-93e1-7f90-abac-d830fafc0e14</dd>
+            </div>
+            <div>
+              <dt>連結</dt>
+              <dd>codex://threads/01a06aa4-93e1-7f90-abac-d830fafc0e14</dd>
+            </div>
+          </dl>
+          <div class="template-row">
+            <button type="button" data-open-codex-thread="codex://threads/01a06aa4-93e1-7f90-abac-d830fafc0e14">開啟 Codex 工作</button>
+            <button class="secondary" type="button" data-copy-codex-thread="codex://threads/01a06aa4-93e1-7f90-abac-d830fafc0e14">複製工作連結</button>
+          </div>
+        </article>
+
         <article class="offline-card">
           <div>
             <h3>離線上課與檔名系統</h3>
@@ -1213,6 +1234,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20260827-workspace-paths-2"></script>
+  <script src="app.js?v=20260906-codex-work-card"></script>
 </body>
 </html>
