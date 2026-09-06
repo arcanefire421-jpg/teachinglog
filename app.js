@@ -896,7 +896,54 @@ function selectedOutputLabels() {
   if ($("batchOutputFilename")?.checked) labels.push("檔名");
   if ($("batchOutputQuestion")?.checked) labels.push("題目");
   if ($("batchOutputHandout")?.checked) labels.push("講義");
+  if ($("batchOutputWorkCard")?.checked) labels.push("工作卡提示詞");
   return labels;
+}
+
+function buildCodexWorkCardPrompt() {
+  syncSharedScopeToTools();
+  const scopeItems = productionScopeItemsForPrompt();
+  const outputItems = [];
+  if ($("batchOutputFilename")?.checked) outputItems.push("檔名");
+  if ($("batchOutputQuestion")?.checked) outputItems.push("題目 Word 測驗卷");
+  if ($("batchOutputHandout")?.checked) outputItems.push("Word 講義");
+  const taskTitle = `${scopeItems[0]?.grade || $("sharedGrade").value}${scopeItems[0]?.subject || $("sharedSubject").value}_${usingProductionScopeCache() ? "跨單元" : "單元"}_${outputItems.join("＋") || "製作"}`;
+  const scopeLines = productionScopePromptLines(scopeItems).join("\n");
+  const questionText = $("batchOutputQuestion")?.checked
+    ? `題目設定：${questionGenerationModeLabel($("questionGenerationMode").value)}；${$("questionType").value}；共 ${$("questionTotalCount").value || 0} 題；基礎 ${$("questionBasicCount").value || 0}、中等 ${$("questionMiddleCount").value || 0}、挑戰 ${$("questionChallengeCount").value || 0}；${QUESTION_STYLE_LABELS[$("questionStyle").value] || $("questionStyle").value}／${QUESTION_LAYOUT_LABELS[$("questionLayout").value] || $("questionLayout").value}／${QUESTION_TYPOGRAPHY_LABELS[$("questionTypography").value] || $("questionTypography").value}`
+    : "題目設定：未勾選題目輸出。";
+  const handoutText = $("batchOutputHandout")?.checked
+    ? `講義設定：${handoutAudienceLabel($("handoutAudience").value)}；${handoutStyleLabel($("handoutStyle").value)}；範例 ${$("handoutExampleCount").value || 0} 題；隨堂演練 ${$("handoutPracticeCount").value || 0} 題；${HANDOUT_TYPOGRAPHY_LABELS[$("handoutTypography").value] || $("handoutTypography").value}`
+    : "講義設定：未勾選講義輸出。";
+  return [
+    "【Codex 工作卡提示詞】",
+    `請建立一張 Codex 工作卡，標題：${taskTitle}`,
+    "",
+    "任務目標：",
+    `依照下列已選範圍，完成${outputItems.join("、") || "指定教材製作"}。請先讀取專案規則，再開始產出；只處理本工作卡列出的範圍與輸出，不要改動無關檔案。`,
+    "",
+    "工作資料夾：",
+    "D:\\Workspace\\Codex\\Projects\\製作題目",
+    "",
+    "Books 資料夾：",
+    "D:\\Workspace\\Books",
+    "",
+    "製作範圍：",
+    scopeLines,
+    "",
+    "輸出項目：",
+    outputItems.length ? outputItems.map((item, index) => `${index + 1}. ${item}`).join("\n") : "未勾選，請先確認輸出項目。",
+    "",
+    questionText,
+    handoutText,
+    "",
+    "執行規則：",
+    "1. 若使用本機題庫，必須沿用 question_bank_client.py 與題庫 API，不要直接讀 SQLite。",
+    "2. 大量抓完整題目時，先用 questions() 取得 ID，再用 questions_by_id() 批次取得完整題目。",
+    "3. Word/PDF 產出後要回報完整路徑；需要轉 PDF 時使用英文暫存路徑避開 LibreOffice 中文路徑問題。",
+    "4. 若候選題不足，明確回報不足數量，不要用 AI 題冒充本機題庫原題。",
+    "5. 完成後列出已產出檔案、題數/頁數檢查結果與任何不足。"
+  ].join("\n");
 }
 
 function renderProductionFinalSummary() {
@@ -1533,6 +1580,10 @@ function buildBatchOutput() {
     buildHandoutPrompt();
     blocks.push(["【講義指令】", $("handoutPromptOutput").value].join("\n"));
     summary.push("講義指令");
+  }
+  if ($("batchOutputWorkCard")?.checked) {
+    blocks.push(buildCodexWorkCardPrompt());
+    summary.push("工作卡提示詞");
   }
   $("batchOutputText").value = blocks.length ? blocks.join("\n\n---\n\n") : "請至少勾選一個輸出項目。";
   $("batchOutputText").classList.toggle("collapsed", !blocks.length);
@@ -2813,16 +2864,6 @@ function openOfflineUrl(url) {
   window.open(url, "_blank", "noopener");
 }
 
-async function copyCodexThreadLink(url) {
-  await navigator.clipboard.writeText(url);
-  toast("已複製 Codex 工作連結");
-}
-
-function openCodexThread(url) {
-  window.location.href = url;
-  toast("正在開啟 Codex 工作");
-}
-
 function exportCourseReviewSubjectCsv() {
   const subject = $("dataSubjectSelect").value;
   const rows = [["科目", "冊別/教材", "章", "節", "小重點"]];
@@ -2956,7 +2997,7 @@ function bindEvents() {
   $("clearProductionScopeBtn").addEventListener("click", () => clearProductionScopeCache(true));
   $("buildBatchOutputBtn").addEventListener("click", buildBatchOutput);
   $("copyBatchOutputBtn").addEventListener("click", copyBatchOutput);
-  ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout"].forEach(id => {
+  ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout", "batchOutputWorkCard"].forEach(id => {
     $(id).addEventListener("change", () => {
       updateProductionTaskVisibility();
       $("batchOutputText").value = "";
@@ -3128,8 +3169,6 @@ function bindEvents() {
     if (target.dataset.useProgressPath) useCourseReviewPath(decodeURIComponent(target.dataset.useProgressPath));
     if (target.dataset.copyOffline) copyOfflinePath(target.dataset.copyOffline);
     if (target.dataset.openOffline) openOfflineUrl(target.dataset.openOffline);
-    if (target.dataset.copyCodexThread) copyCodexThreadLink(target.dataset.copyCodexThread);
-    if (target.dataset.openCodexThread) openCodexThread(target.dataset.openCodexThread);
   });
 
   document.body.addEventListener("input", event => {
