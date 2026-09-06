@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20260906-work-card-merge">
+  <link rel="stylesheet" href="styles.css?v=20260907-learning-aid">
 </head>
 <body>
   <header class="app-header">
@@ -364,6 +364,34 @@
             <strong>工作卡提示詞</strong>
             <span>把已選範圍整理成可貼給 Codex 的工作卡。</span>
           </label>
+          <label class="production-choice-card">
+            <input id="batchOutputLearningAid" type="checkbox">
+            <strong>AI學習輔助包</strong>
+            <span>產生學習地圖、預習、視覺圖解、家長版與圖片提示詞。</span>
+          </label>
+        </div>
+      </section>
+
+      <section id="learningAidOptions" class="form-section learning-aid-options hidden-view" aria-labelledby="learningAidTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="learningAidTitle">AI學習輔助包內容</h2>
+            <p>選擇要輸出的資料夾模組與可複製的圖片生成提示詞。</p>
+          </div>
+        </div>
+        <div class="check-grid learning-aid-grid">
+          <label class="checkline"><input id="learningAidMap" type="checkbox" checked><span>00_全冊學習地圖</span></label>
+          <label class="checkline"><input id="learningAidPreview" type="checkbox" checked><span>01_章前預習</span></label>
+          <label class="checkline"><input id="learningAidVisual" type="checkbox" checked><span>02_小節視覺圖解</span></label>
+          <label class="checkline"><input id="learningAidParent" type="checkbox" checked><span>03_家長白話版</span></label>
+          <label class="checkline"><input id="learningAidReadme" type="checkbox" checked><span>README.md</span></label>
+        </div>
+        <div class="check-grid learning-aid-grid">
+          <label class="checkline"><input id="learningAidImageIg" type="checkbox" checked><span>IG 圖卡提示詞</span></label>
+          <label class="checkline"><input id="learningAidImageHandout" type="checkbox" checked><span>講義插圖提示詞</span></label>
+          <label class="checkline"><input id="learningAidImageFlow" type="checkbox" checked><span>流程圖提示詞</span></label>
+          <label class="checkline"><input id="learningAidImageMind" type="checkbox"><span>心智圖提示詞</span></label>
+          <label class="checkline"><input id="learningAidImageParent" type="checkbox"><span>家長懶人包圖片提示詞</span></label>
         </div>
       </section>
     </section>
@@ -1219,6 +1247,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20260906-work-card-merge"></script>
+  <script src="app.js?v=20260907-learning-aid"></script>
 </body>
 </html>

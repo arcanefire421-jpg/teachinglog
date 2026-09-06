@@ -897,7 +897,32 @@ function selectedOutputLabels() {
   if ($("batchOutputQuestion")?.checked) labels.push("題目");
   if ($("batchOutputHandout")?.checked) labels.push("講義");
   if ($("batchOutputWorkCard")?.checked) labels.push("工作卡提示詞");
+  if ($("batchOutputLearningAid")?.checked) labels.push("AI學習輔助包");
   return labels;
+}
+
+const LEARNING_AID_MODULES = [
+  { id: "learningAidMap", folder: "00_全冊學習地圖", purpose: "整理全冊或本章學習路線、概念先後關係與考試定位。" },
+  { id: "learningAidPreview", folder: "01_章前預習", purpose: "把學生上課前需要知道的先備知識、關鍵問題與預習任務整理清楚。" },
+  { id: "learningAidVisual", folder: "02_小節視覺圖解", purpose: "把抽象概念轉成流程圖、因果鏈、比較表、時間線、口訣與可視化圖解。" },
+  { id: "learningAidParent", folder: "03_家長白話版", purpose: "用家長聽得懂的語言說明孩子正在學什麼、常卡在哪裡、家長可以怎麼問。" },
+  { id: "learningAidReadme", folder: "README.md", purpose: "說明輔助包各檔案用途、適用對象與建議使用順序。" }
+];
+
+const LEARNING_AID_IMAGE_PROMPTS = [
+  { id: "learningAidImageIg", label: "IG 圖卡提示詞", format: "一張 4:5 直式 IG 教學圖卡，適合社群貼文與課前提醒。" },
+  { id: "learningAidImageHandout", label: "講義插圖提示詞", format: "一張灰階可印刷講義插圖，適合放在 Word 講義中。" },
+  { id: "learningAidImageFlow", label: "流程圖提示詞", format: "一張流程圖或因果鏈圖，清楚呈現概念順序與判斷路徑。" },
+  { id: "learningAidImageMind", label: "心智圖提示詞", format: "一張心智圖，呈現核心概念、分支概念與易錯連結。" },
+  { id: "learningAidImageParent", label: "家長懶人包圖片提示詞", format: "一張家長可讀的懶人包圖，避免術語堆疊，重點放在陪讀提問。" }
+];
+
+function selectedLearningAidModules() {
+  return LEARNING_AID_MODULES.filter(item => $(item.id)?.checked);
+}
+
+function selectedLearningAidImagePrompts() {
+  return LEARNING_AID_IMAGE_PROMPTS.filter(item => $(item.id)?.checked);
 }
 
 function activeProductionModeLabel() {
@@ -912,6 +937,65 @@ function productionJobCardTitle(scopeItems, outputItems) {
   return `${first.grade}${first.subject}_${scopeType}_${outputText}`;
 }
 
+function learningAidFolderTree(modules = selectedLearningAidModules()) {
+  const folders = modules.map(item => item.folder);
+  return [
+    "AI學習輔助包",
+    folders.includes("00_全冊學習地圖") ? "├─ 00_全冊學習地圖" : "",
+    folders.includes("01_章前預習") ? "├─ 01_章前預習" : "",
+    folders.includes("02_小節視覺圖解") ? "├─ 02_小節視覺圖解" : "",
+    folders.includes("03_家長白話版") ? "├─ 03_家長白話版" : "",
+    folders.includes("README.md") ? "└─ README.md" : ""
+  ].filter(Boolean).join("\n");
+}
+
+function buildLearningAidImagePromptLines(scopeItems, imagePrompts) {
+  if (!imagePrompts.length) return "未勾選圖片提示詞。";
+  const scopeText = productionScopeSummaryText(scopeItems);
+  const keywordText = productionScopeKeywordParts(scopeItems).join("、") || "依章節與小節名稱自行整理核心概念";
+  return imagePrompts.map((item, index) => [
+    `圖片提示詞 ${index + 1}：${item.label}`,
+    `請生成${item.format}`,
+    `主題：${scopeText}`,
+    `核心概念：${keywordText}`,
+    "視覺要求：乾淨、清楚、適合教學使用；文字使用繁體中文；避免過度裝飾、避免卡通化、避免看不清楚的小字。",
+    "內容要求：圖中必須呈現概念關係、常見誤解或解題判斷流程；若是講義插圖，請優先使用灰階與高對比線條。"
+  ].join("\n")).join("\n\n");
+}
+
+function buildLearningAidPrompt() {
+  syncSharedScopeToTools();
+  const scopeItems = productionScopeItemsForPrompt();
+  const modules = selectedLearningAidModules();
+  const imagePrompts = selectedLearningAidImagePrompts();
+  const moduleLines = modules.length
+    ? modules.map((item, index) => `${index + 1}. ${item.folder}：${item.purpose}`).join("\n")
+    : "未勾選模組，請先確認 AI學習輔助包內容。";
+  return [
+    "【AI學習輔助包指令】",
+    "請依照下列範圍建立 AI學習輔助包，內容需適合台灣高中/國中/國小課程脈絡，語氣清楚、白話但不失準確。",
+    "",
+    "資料夾結構：",
+    learningAidFolderTree(modules),
+    "",
+    "製作範圍：",
+    productionScopePromptLines(scopeItems).join("\n"),
+    "",
+    "輸出模組：",
+    moduleLines,
+    "",
+    "內容規則：",
+    "1. 不改動正式講義 DOCX；AI學習輔助包屬於課前、課後、家長溝通與視覺化輔助素材。",
+    "2. 內容要依照已選範圍，不要擴寫到無關章節。",
+    "3. 每個小節都要包含學習主線、先備知識、核心概念、常見誤解、記憶口訣或判斷流程。",
+    "4. 若跨多個範圍，先做總覽，再逐範圍輸出，避免混在一起看不懂。",
+    "5. 家長白話版避免術語堆疊，要寫出孩子容易卡住的地方與可追問的檢核問題。",
+    "",
+    "圖片生成提示詞：",
+    buildLearningAidImagePromptLines(scopeItems, imagePrompts)
+  ].join("\n");
+}
+
 function buildCodexWorkCardPrompt() {
   syncSharedScopeToTools();
   const scopeItems = productionScopeItemsForPrompt();
@@ -919,6 +1003,7 @@ function buildCodexWorkCardPrompt() {
   if ($("batchOutputFilename")?.checked) outputItems.push("檔名");
   if ($("batchOutputQuestion")?.checked) outputItems.push("題目 Word 測驗卷");
   if ($("batchOutputHandout")?.checked) outputItems.push("Word 講義");
+  if ($("batchOutputLearningAid")?.checked) outputItems.push("AI學習輔助包");
   const taskTitle = productionJobCardTitle(scopeItems, outputItems);
   const scopeLines = productionScopePromptLines(scopeItems).join("\n");
   const outputLines = outputItems.length
@@ -980,12 +1065,16 @@ function renderProductionFinalSummary() {
   const workCardText = $("batchOutputWorkCard")?.checked
     ? "已產生可貼給 Codex 的工作卡提示詞"
     : "未勾選工作卡";
+  const learningAidText = $("batchOutputLearningAid")?.checked
+    ? `${selectedLearningAidModules().length} 個模組，${selectedLearningAidImagePrompts().length} 種圖片提示詞`
+    : "未勾選學習輔助包";
   wrap.innerHTML = [
     `<div><span>範圍</span><strong>${escapeHtml(usingProductionScopeCache() ? `跨 ${scopeItems.length} 個範圍` : "單一範圍")}</strong></div>`,
     `<div><span>輸出</span><strong>${escapeHtml(outputs.join("、") || "尚未勾選")}</strong></div>`,
     `<div><span>題目</span><strong>${escapeHtml(questionText)}</strong></div>`,
     `<div><span>講義</span><strong>${escapeHtml(handoutText)}</strong></div>`,
-    `<div><span>工作卡</span><strong>${escapeHtml(workCardText)}</strong></div>`
+    `<div><span>工作卡</span><strong>${escapeHtml(workCardText)}</strong></div>`,
+    `<div><span>AI輔助包</span><strong>${escapeHtml(learningAidText)}</strong></div>`
   ].join("");
 }
 
@@ -1617,13 +1706,17 @@ function buildBatchOutput() {
     blocks.push(buildCodexWorkCardPrompt());
     summary.push("工作卡提示詞");
   }
+  if ($("batchOutputLearningAid")?.checked) {
+    blocks.push(buildLearningAidPrompt());
+    summary.push("AI學習輔助包");
+  }
   const outputText = $("batchOutputText");
   outputText.value = blocks.length ? blocks.join("\n\n---\n\n") : "請至少勾選一個輸出項目。";
   outputText.scrollTop = 0;
   outputText.classList.toggle("collapsed", !blocks.length);
   $("batchOutputPreview").classList.toggle("muted", !blocks.length);
   $("batchOutputPreview").textContent = blocks.length
-    ? `已產生：${summary.join("、")}；${usingProductionScopeCache() ? `跨 ${productionScopeItemsForPrompt().length} 個範圍` : "單一範圍"}。${$("batchOutputWorkCard")?.checked ? "工作卡提示詞已放入下方欄位。" : ""}可直接複製全部結果。`
+    ? `已產生：${summary.join("、")}；${usingProductionScopeCache() ? `跨 ${productionScopeItemsForPrompt().length} 個範圍` : "單一範圍"}。${$("batchOutputWorkCard")?.checked ? "工作卡提示詞已放入下方欄位。" : ""}${$("batchOutputLearningAid")?.checked ? "AI學習輔助包與圖片提示詞已放入下方欄位。" : ""}可直接複製全部結果。`
     : "請至少勾選一個輸出項目。";
   renderProductionFinalSummary();
   toast("已產生勾選項目");
@@ -1653,6 +1746,7 @@ function updateProductionTaskVisibility() {
     question: $("batchOutputQuestion")?.checked,
     handout: $("batchOutputHandout")?.checked
   };
+  $("learningAidOptions")?.classList.toggle("hidden-view", !$("batchOutputLearningAid")?.checked);
   document.querySelectorAll("[data-production-task]").forEach(panel => {
     const shouldShow = activeView === "production" && visibleByTask[panel.dataset.productionTask];
     panel.classList.toggle("hidden-view", !shouldShow);
@@ -3051,7 +3145,11 @@ function bindEvents() {
       applyProductionMode(button.dataset.productionMode);
     });
   });
-  ["batchOutputFilename", "batchOutputQuestion", "batchOutputHandout", "batchOutputWorkCard"].forEach(id => {
+  [
+    "batchOutputFilename", "batchOutputQuestion", "batchOutputHandout", "batchOutputWorkCard", "batchOutputLearningAid",
+    "learningAidMap", "learningAidPreview", "learningAidVisual", "learningAidParent", "learningAidReadme",
+    "learningAidImageIg", "learningAidImageHandout", "learningAidImageFlow", "learningAidImageMind", "learningAidImageParent"
+  ].forEach(id => {
     const outputToggle = $(id);
     if (!outputToggle) return;
     outputToggle.addEventListener("change", () => {
