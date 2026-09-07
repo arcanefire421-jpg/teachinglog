@@ -908,26 +908,77 @@ const LEARNING_AID_MODULES = [
   { id: "learningAidParent", folder: "03_家長白話版", title: "家長白話版", purpose: "用家長聽得懂的語言說明孩子正在學什麼、常卡在哪裡、家長可以怎麼問。", styleId: "learningAidParentStyle", useId: "learningAidParentUse" }
 ];
 
-const LEARNING_AID_STYLE_LABELS = {
-  routeMap: "地圖式路線圖",
-  mindMap: "心智圖",
-  knowledgeTree: "知識樹",
-  dashboard: "課程導航圖",
-  warmup: "概念暖身圖",
-  taskCard: "預習任務卡",
-  scenario: "情境導入圖",
-  onePage: "一頁式預習單",
-  auto: "依內容自動選流程圖／比較表／因果鏈／結構標示圖／時間軸圖",
-  flow: "流程圖",
-  compare: "比較表圖解",
-  cause: "因果鏈圖",
-  structure: "結構標示圖",
-  timeline: "時間軸圖",
-  parentBrief: "家長懶人包",
-  dialogue: "親子對話圖",
-  poster: "學習重點海報",
-  diagnosis: "成績診斷圖"
+const LEARNING_AID_STYLE_OPTIONS = [
+  {
+    group: "考生實用",
+    options: [
+      { value: "examSenior", label: "高三考生版", description: "黑白技術線稿、少裝飾、公式、判讀表與解題流程為主，適合學測分科考前複習。" },
+      { value: "referencePolished", label: "參考書精修版", description: "粗細線分層、重點框、比較表清楚，像補習班講義或參考書內頁。" },
+      { value: "examSprint", label: "段考速讀版", description: "重點密度高、標題精簡、常考句型與陷阱整理，適合段考前快速掃讀。" },
+      { value: "gsatLiteracy", label: "學測素養版", description: "情境資料、圖表判讀、實驗流程與跨概念連結，適合素養題訓練。" },
+      { value: "mistakeDiagnosis", label: "錯題診斷版", description: "錯因分類、陷阱提示、正確判讀流程與易混概念對照。" },
+      { value: "formulaMap", label: "公式地圖版", description: "公式來源、適用條件、變形方向與單位檢查，適合物理化學。" },
+      { value: "labAnalysis", label: "實驗判讀版", description: "裝置圖、變因控制、數據表與結論推理流程，適合自然科實驗題。" }
+    ]
+  },
+  {
+    group: "吸引學生",
+    options: [
+      { value: "candyCartoon", label: "卡通糖果風格", description: "明亮、可愛、低壓力，適合國小國中預習或課前引起動機。" },
+      { value: "comicPanel", label: "漫畫分鏡風格", description: "3 到 5 格分鏡，呈現概念衝突、科學史或常見誤解。" },
+      { value: "gameQuest", label: "遊戲關卡風格", description: "章節任務地圖、Boss 關、技能解鎖，適合學習路線與複習進度。" },
+      { value: "detective", label: "偵探推理風格", description: "線索、證據、推論與真相，適合遺傳判讀、化學鑑定、地科證據題。" },
+      { value: "medicalCase", label: "醫療病例風格", description: "病例卡、檢驗數據、診斷流程，適合生物生理與化學檢測。" },
+      { value: "spaceMission", label: "太空任務風格", description: "任務控制台、航行路線與任務節點，適合物理、地科與跨單元學習。" },
+      { value: "sciFiHud", label: "科幻 HUD 風格", description: "深色介面、數據框、向量線與儀表資訊，適合物理與資訊感題材。" },
+      { value: "journalNotes", label: "手帳筆記風格", description: "紙感、貼紙、手寫註記與重點框，適合預習單與家長版。" },
+      { value: "minimalWhiteboard", label: "極簡白板風格", description: "老師板書感、線條乾淨、重點直覺，適合概念暖身。" },
+      { value: "infographic", label: "資訊圖表風格", description: "圖示、流程、比較表、比例圖，適合社群圖卡與講義摘要。" },
+      { value: "newspaperFeature", label: "報紙專題風格", description: "科學新聞版面、標題、引言與資料圖，適合素養題、地科災害、科技議題。" },
+      { value: "museumPanel", label: "博物館展板風格", description: "沉穩、標本感、說明牌式，適合生物分類、演化、地科岩石。" },
+      { value: "labNotebook", label: "實驗室筆記風格", description: "格線紙、裝置圖、變因表與觀察紀錄，適合實驗設計。" },
+      { value: "blueprintEngineering", label: "藍圖工程風格", description: "技術線稿、尺寸標記、箭頭與結構標注，適合物理裝置與結構圖。" }
+    ]
+  },
+  {
+    group: "原本模組風格",
+    options: [
+      { value: "routeMap", label: "地圖式路線圖", description: "以路線、節點與學習順序呈現全冊或章節架構。" },
+      { value: "mindMap", label: "心智圖", description: "用中心主題向外分枝，整理概念分類與關聯。" },
+      { value: "knowledgeTree", label: "知識樹", description: "用主幹、分枝、葉節點表現先備知識、核心概念與延伸。" },
+      { value: "dashboard", label: "課程導航圖", description: "以儀表板方式整合進度、重點、易錯點與檢核項目。" },
+      { value: "warmup", label: "概念暖身圖", description: "用少量問題與情境讓學生進入新章節。" },
+      { value: "taskCard", label: "預習任務卡", description: "將預習任務拆成可勾選的短任務。" },
+      { value: "scenario", label: "情境導入圖", description: "用生活或實驗情境帶出核心問題。" },
+      { value: "onePage", label: "一頁式預習單", description: "在單頁內放先備知識、關鍵問題與課前檢核。" },
+      { value: "auto", label: "依內容自動選流程圖／比較表／因果鏈／結構標示圖／時間軸圖", description: "依主題自動選擇最合適的視覺圖解形式。" },
+      { value: "flow", label: "流程圖", description: "呈現步驟、機制、推理或操作流程。" },
+      { value: "compare", label: "比較表圖解", description: "用欄列比較易混概念、條件、特徵與結果。" },
+      { value: "cause", label: "因果鏈圖", description: "呈現原因、過程、影響與結果的連鎖關係。" },
+      { value: "structure", label: "結構標示圖", description: "用標注線清楚指出構造、部位或圖像元素。" },
+      { value: "timeline", label: "時間軸圖", description: "呈現科學史、發展歷程或事件先後。" },
+      { value: "parentBrief", label: "家長懶人包", description: "用白話摘要孩子正在學的重點與家長可協助方向。" },
+      { value: "dialogue", label: "親子對話圖", description: "用親子問答呈現概念檢核與常見卡點。" },
+      { value: "poster", label: "學習重點海報", description: "用海報式版面整理少量關鍵概念。" },
+      { value: "diagnosis", label: "成績診斷圖", description: "用診斷表方式呈現錯因、補救方向與追問問題。" }
+    ]
+  }
+];
+
+const LEARNING_AID_DEFAULT_STYLES = {
+  learningAidMapStyle: "routeMap",
+  learningAidPreviewStyle: "warmup",
+  learningAidVisualStyle: "auto",
+  learningAidParentStyle: "parentBrief"
 };
+
+const LEARNING_AID_STYLE_LABELS = Object.fromEntries(
+  LEARNING_AID_STYLE_OPTIONS.flatMap(group => group.options.map(option => [option.value, option.label]))
+);
+
+const LEARNING_AID_STYLE_DESCRIPTIONS = Object.fromEntries(
+  LEARNING_AID_STYLE_OPTIONS.flatMap(group => group.options.map(option => [option.value, option.description]))
+);
 
 const LEARNING_AID_USE_LABELS = {
   handout: "講義用",
@@ -943,6 +994,26 @@ function selectedLearningAidModules() {
 function learningAidStyleLabel(item) {
   const value = $(item.styleId)?.value || "";
   return LEARNING_AID_STYLE_LABELS[value] || value || "未指定";
+}
+
+function learningAidStyleDescription(item) {
+  const value = $(item.styleId)?.value || "";
+  return LEARNING_AID_STYLE_DESCRIPTIONS[value] || "依教學內容選擇清楚、可讀、適合指定用途的視覺呈現。";
+}
+
+function renderLearningAidStyleOptions() {
+  Object.entries(LEARNING_AID_DEFAULT_STYLES).forEach(([selectId, defaultValue]) => {
+    const select = $(selectId);
+    if (!select) return;
+    const currentValue = select.value || defaultValue;
+    select.innerHTML = LEARNING_AID_STYLE_OPTIONS.map(group => {
+      const options = group.options.map(option => (
+        `<option value="${option.value}">${option.label}</option>`
+      )).join("");
+      return `<optgroup label="${group.group}">${options}</optgroup>`;
+    }).join("");
+    select.value = LEARNING_AID_STYLE_LABELS[currentValue] ? currentValue : defaultValue;
+  });
 }
 
 function learningAidUseLabel(item) {
@@ -982,6 +1053,7 @@ function buildLearningAidImagePromptLines(scopeItems, modules) {
   return modules.map((item, index) => [
     `圖片提示詞 ${index + 1}：${item.title}`,
     `風格：${learningAidStyleLabel(item)}`,
+    `風格說明：${learningAidStyleDescription(item)}`,
     `用途：${learningAidUseLabel(item)}`,
     `主題：${scopeText}`,
     `核心概念：${keywordText}`,
@@ -3412,6 +3484,7 @@ function bindEvents() {
   });
 }
 
+renderLearningAidStyleOptions();
 restoreDraft();
 bindEvents();
 updatePreviewSizeClass();
