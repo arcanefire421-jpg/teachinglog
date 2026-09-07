@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20260907-learning-aid">
+  <link rel="stylesheet" href="styles.css?v=20260907-learning-aid-style-table">
 </head>
 <body>
   <header class="app-header">
@@ -376,23 +376,84 @@
         <div class="section-head compact">
           <div>
             <h2 id="learningAidTitle">AI學習輔助包內容</h2>
-            <p>選擇要輸出的資料夾模組與可複製的圖片生成提示詞。</p>
+            <p>四張圖各自選風格與用途；README 只作為輔助包說明檔。</p>
           </div>
         </div>
-        <div class="check-grid learning-aid-grid">
-          <label class="checkline"><input id="learningAidMap" type="checkbox" checked><span>00_全冊學習地圖</span></label>
-          <label class="checkline"><input id="learningAidPreview" type="checkbox" checked><span>01_章前預習</span></label>
-          <label class="checkline"><input id="learningAidVisual" type="checkbox" checked><span>02_小節視覺圖解</span></label>
-          <label class="checkline"><input id="learningAidParent" type="checkbox" checked><span>03_家長白話版</span></label>
-          <label class="checkline"><input id="learningAidReadme" type="checkbox" checked><span>README.md</span></label>
+        <div class="learning-aid-table">
+          <div class="learning-aid-row learning-aid-head">
+            <span>輸出</span>
+            <span>圖片</span>
+            <span>風格</span>
+            <span>用途</span>
+          </div>
+          <label class="learning-aid-row">
+            <input id="learningAidMap" type="checkbox" checked>
+            <strong>00_全冊學習地圖</strong>
+            <select id="learningAidMapStyle">
+              <option value="routeMap" selected>地圖式路線圖</option>
+              <option value="mindMap">心智圖</option>
+              <option value="knowledgeTree">知識樹</option>
+              <option value="dashboard">課程導航圖</option>
+            </select>
+            <select id="learningAidMapUse">
+              <option value="handout" selected>講義用</option>
+              <option value="slide">投影片用</option>
+              <option value="social">社群圖卡用</option>
+              <option value="parentMessage">家長傳訊用</option>
+            </select>
+          </label>
+          <label class="learning-aid-row">
+            <input id="learningAidPreview" type="checkbox" checked>
+            <strong>01_章前預習</strong>
+            <select id="learningAidPreviewStyle">
+              <option value="warmup" selected>概念暖身圖</option>
+              <option value="taskCard">預習任務卡</option>
+              <option value="scenario">情境導入圖</option>
+              <option value="onePage">一頁式預習單</option>
+            </select>
+            <select id="learningAidPreviewUse">
+              <option value="handout" selected>講義用</option>
+              <option value="slide">投影片用</option>
+              <option value="social">社群圖卡用</option>
+              <option value="parentMessage">家長傳訊用</option>
+            </select>
+          </label>
+          <label class="learning-aid-row">
+            <input id="learningAidVisual" type="checkbox" checked>
+            <strong>02_小節視覺圖解</strong>
+            <select id="learningAidVisualStyle">
+              <option value="auto" selected>依內容自動選</option>
+              <option value="flow">流程圖</option>
+              <option value="compare">比較表圖解</option>
+              <option value="cause">因果鏈圖</option>
+              <option value="structure">結構標示圖</option>
+              <option value="timeline">時間軸圖</option>
+            </select>
+            <select id="learningAidVisualUse">
+              <option value="handout" selected>講義用</option>
+              <option value="slide">投影片用</option>
+              <option value="social">社群圖卡用</option>
+              <option value="parentMessage">家長傳訊用</option>
+            </select>
+          </label>
+          <label class="learning-aid-row">
+            <input id="learningAidParent" type="checkbox" checked>
+            <strong>03_家長白話版</strong>
+            <select id="learningAidParentStyle">
+              <option value="parentBrief" selected>家長懶人包</option>
+              <option value="dialogue">親子對話圖</option>
+              <option value="poster">學習重點海報</option>
+              <option value="diagnosis">成績診斷圖</option>
+            </select>
+            <select id="learningAidParentUse">
+              <option value="parentMessage" selected>家長傳訊用</option>
+              <option value="handout">講義用</option>
+              <option value="slide">投影片用</option>
+              <option value="social">社群圖卡用</option>
+            </select>
+          </label>
         </div>
-        <div class="check-grid learning-aid-grid">
-          <label class="checkline"><input id="learningAidImageIg" type="checkbox" checked><span>IG 圖卡提示詞</span></label>
-          <label class="checkline"><input id="learningAidImageHandout" type="checkbox" checked><span>講義插圖提示詞</span></label>
-          <label class="checkline"><input id="learningAidImageFlow" type="checkbox" checked><span>流程圖提示詞</span></label>
-          <label class="checkline"><input id="learningAidImageMind" type="checkbox"><span>心智圖提示詞</span></label>
-          <label class="checkline"><input id="learningAidImageParent" type="checkbox"><span>家長懶人包圖片提示詞</span></label>
-        </div>
+        <label class="checkline learning-aid-readme"><input id="learningAidReadme" type="checkbox" checked><span>包含 README.md 說明檔</span></label>
       </section>
     </section>
 
@@ -1247,6 +1308,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20260907-learning-aid"></script>
+  <script src="app.js?v=20260907-learning-aid-style-table"></script>
 </body>
 </html>

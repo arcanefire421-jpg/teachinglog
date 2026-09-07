@@ -441,8 +441,48 @@ button:hover { filter: brightness(.97); }
   background: #f8fbff;
 }
 
-.learning-aid-grid {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+.learning-aid-table {
+  display: grid;
+  gap: 8px;
+}
+
+.learning-aid-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(150px, .8fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #c6d3e2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.learning-aid-row input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.learning-aid-row strong {
+  color: #1e3d78;
+  font-size: .95rem;
+}
+
+.learning-aid-row select {
+  min-height: 40px;
+}
+
+.learning-aid-head {
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 900;
+}
+
+.learning-aid-readme {
+  margin-top: 10px;
+  background: #fff;
 }
 
 .production-mode-grid {
@@ -1748,6 +1788,8 @@ button:hover { filter: brightness(.97); }
   .field-grid.four { grid-template-columns: repeat(2, 1fr); }
   .production-mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .production-final-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .learning-aid-row { grid-template-columns: auto minmax(0, 1fr); }
+  .learning-aid-row select { grid-column: 2; }
   .course-data-grid { grid-template-columns: 1fr; }
   .offline-grid { grid-template-columns: 1fr; }
   .course-data-outline { min-height: auto; }
@@ -1768,6 +1810,9 @@ button:hover { filter: brightness(.97); }
   .app-shell { padding: 10px; gap: 10px; }
   .panel { padding: 12px; }
   .field-grid.two, .field-grid.three, .field-grid.four, .mode-choice, .production-mode-grid, .production-final-summary { grid-template-columns: 1fr; }
+  .learning-aid-row { grid-template-columns: 1fr; }
+  .learning-aid-row input, .learning-aid-row select { grid-column: auto; }
+  .learning-aid-head { display: none; }
   .check-grid { grid-template-columns: 1fr; }
   .compact-fields { gap: 8px; }
   .filename-result { grid-template-columns: 1fr; }
