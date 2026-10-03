@@ -20,6 +20,7 @@ let courseReviewExpanded = false;
 let courseFixes = readJson(STORAGE.fixes, []);
 let progressCache = readJson(STORAGE.progressCache, []);
 let productionScopeCache = readJson(STORAGE.productionScopeCache, []);
+let productionMode = readJson("teachinglog.productionMode.v1", "singleQuestion");
 let homeworkPhrases = readJson(STORAGE.homeworkPhrases, ["完成講義", "訂正錯題", "複習今日進度", "預習下次範圍"]);
 let sharedSelectedTopics = new Set();
 let questionSelectedTopics = new Set();
@@ -60,7 +61,7 @@ const HANDOUT_TEACHER_BACKGROUND = [
   "你將扮演一位擁有四十年教學經驗的專業高中自然科學老師，專精於高中自然科學所有領域（物理、化學、生物、地球科學），並對課綱、考試趨勢與學生盲點有深刻洞察。你的教學風格嚴謹、權威且能深入淺出。",
   "核心任務是根據指定主題，規劃教學進度並編寫高三升大學程度的參考書講義，目標是建立完整、深入且權威的知識體系，以應對考試並培養科學素養。",
   "講義應嚴格遵循大標題、子標題、小標題架構；每個小節目標篇幅約 20 頁。若單次任務無法完成完整篇幅，先完成第一小節並等待下一個指令。",
-  "每個小標題下須包含九個部分：定義、說明、定理、公式、範例與解法、隨堂演練、科學素養計算題 5 題、科學素養觀念理解題 5 題、科學素養思考題 5 題。",
+  "每個小標題的內容模組、題數與答案顯示方式，嚴格依照下方內容結構及本次勾選設定，不得加入未勾選的模組。",
   "講義說明部分應專業、權威、詳盡且富有啟發性；詳解部分應簡潔、精準、一針見血。",
   "互動流程：用戶將提供主題，你需根據上述要求製作第一小節講義內容。完成後，等待下一個指令。在開始之前，請先確認你已完全理解以上所有指令，並準備好開始教學。"
 ].join("\n");
@@ -785,6 +786,7 @@ function currentProductionScopeItem() {
 }
 
 function saveProductionScopeCache() {
+  invalidateBatchOutput();
   productionScopeCache = productionScopeCache.map(normalizeProductionScopeItem);
   writeJson(STORAGE.productionScopeCache, productionScopeCache);
   renderProductionScopeCache();
@@ -801,6 +803,7 @@ function addCurrentProductionScope() {
   }
   if (!productionScopeCache.some(row => row.id === item.id)) {
     productionScopeCache.push(item);
+    syncProductionModeButtons($("batchOutputHandout")?.checked ? ($("batchOutputQuestion")?.checked ? "questionHandout" : "multiHandout") : "multiQuestion");
     saveProductionScopeCache();
   }
   toast("已加入製作範圍");
@@ -856,13 +859,13 @@ function clearProductionScopeCache(confirmFirst = true) {
 }
 
 function productionScopeItemsForPrompt() {
-  if (!productionScopeCache.length) return [currentProductionScopeItem()];
+  if (!usingProductionScopeCache()) return [currentProductionScopeItem()];
   const enabledItems = productionScopeCache.map(normalizeProductionScopeItem).filter(item => item.enabled !== false);
   return enabledItems.length ? enabledItems : [currentProductionScopeItem()];
 }
 
 function usingProductionScopeCache() {
-  return productionScopeCache.map(normalizeProductionScopeItem).some(item => item.enabled !== false);
+  return !productionMode.startsWith("single") && productionScopeCache.map(normalizeProductionScopeItem).some(item => item.enabled !== false);
 }
 
 function productionScopePromptLines(items = productionScopeItemsForPrompt()) {
@@ -870,7 +873,7 @@ function productionScopePromptLines(items = productionScopeItemsForPrompt()) {
     const topicText = item.topics?.length ? ` / 知識點：${item.topics.join("、")}` : "";
     const keywordText = item.keyword ? ` / 補充關鍵字：${item.keyword}` : "";
     const countText = item.questionCount ? ` / 題數分配：${item.questionCount} 題` : "";
-    return `${index + 1}. ${item.grade} ${item.subject} / ${item.book} / ${item.chapter} / ${item.section}${topicText}${keywordText}${countText}`;
+    return `${index + 1}. ${item.grade} ${item.subject} / ${item.book} / ${item.chapter} / ${item.section}${topicText}${keywordText}${countText}\n   題庫 API subject：${questionBankSubjectName(item.grade, item.subject)} / level：${inferQuestionLevelKey(item.grade)}`;
   });
 }
 
@@ -1144,6 +1147,10 @@ function buildCodexWorkCardPrompt() {
     "",
     questionText,
     handoutText,
+    $("batchOutputFilename")?.checked ? `【完整檔名】\n${buildFilename()}` : "",
+    $("batchOutputQuestion")?.checked ? `【完整題目指令】\n${$("questionPromptOutput").value}` : "",
+    $("batchOutputHandout")?.checked ? `【完整講義指令】\n${$("handoutPromptOutput").value}` : "",
+    $("batchOutputLearningAid")?.checked ? buildLearningAidPrompt() : "",
     "",
     "【硬規則】",
     "1. 若使用本機題庫，必須沿用 question_bank_client.py 與題庫 API，不要直接讀 SQLite。",
@@ -1167,7 +1174,7 @@ function renderProductionFinalSummary() {
     ? `${handoutAudienceLabel($("handoutAudience").value)}，${handoutStyleLabel($("handoutStyle").value)}`
     : "未勾選講義";
   const workCardText = $("batchOutputWorkCard")?.checked
-    ? "已產生可貼給 Codex 的工作卡提示詞"
+    ? "已勾選工作卡提示詞"
     : "未勾選工作卡";
   const learningAidText = $("batchOutputLearningAid")?.checked
     ? `${selectedLearningAidModules().length} 張圖，${$("learningAidReadme")?.checked ? "含 README" : "不含 README"}`
@@ -1183,6 +1190,8 @@ function renderProductionFinalSummary() {
 }
 
 function syncProductionModeButtons(activeMode) {
+  productionMode = activeMode;
+  writeJson("teachinglog.productionMode.v1", productionMode);
   document.querySelectorAll("[data-production-mode]").forEach(button => {
     button.classList.toggle("active", button.dataset.productionMode === activeMode);
   });
@@ -1451,7 +1460,7 @@ function renderArchiveCard(item) {
 function renderSubjectFilter() {
   const filter = $("filterSubject");
   const current = filter.value;
-  const subjects = Array.from(new Set(logs.map(item => item.subject).filter(Boolean))).sort((a, b) => a.localeCompare(b, "zh-Hant"));
+  const subjects = sortSubjects(Array.from(new Set(logs.map(item => item.subject).filter(Boolean))));
   filter.innerHTML = `<option value="">全部科目</option>${subjects.map(item => `<option>${escapeHtml(item)}</option>`).join("")}`;
   filter.value = current;
 }
@@ -1787,8 +1796,51 @@ function syncSharedScopeToTools() {
   buildHandoutPrompt();
 }
 
+function questionValidationError(spec = questionSpec()) {
+  const integer = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
+  if (!integer(spec.totalCount, 1, 60)) return "總題數須為 1 至 60 的整數。";
+  const counts = Object.values(spec.difficulty);
+  if (counts.some(value => !integer(value, 0, 60))) return "難度題數須為 0 至 60 的整數。";
+  if (counts.reduce((sum, value) => sum + value, 0) !== spec.totalCount) return "基礎、中等、挑戰題數合計必須等於總題數。";
+  if (!integer(spec.candidateCount, 5, 100) || spec.candidateCount < spec.totalCount) return "候選題數須為 5 至 100 的整數，且不可少於總題數。";
+  const assigned = spec.scopeItems.filter(item => String(item.questionCount ?? "").trim() !== "");
+  if (assigned.some(item => !integer(Number(item.questionCount), 1, spec.totalCount))) return "各範圍題數須為正整數，或留空自動分配。";
+  const sum = assigned.reduce((total, item) => total + Number(item.questionCount), 0);
+  const autoCount = spec.scopeItems.length - assigned.length;
+  if (sum + autoCount > spec.totalCount || (!autoCount && sum !== spec.totalCount)) return "範圍題數分配與總題數不一致，請調整或留空自動分配。";
+  return "";
+}
+
+function handoutValidationError(spec = handoutSpec()) {
+  const counts = [];
+  if (spec.include.examples) counts.push([spec.exampleCount, 12]);
+  if (spec.include.practice) counts.push([spec.practiceCount, 20], ...Object.values(spec.questionCounts).map(value => [value, 30]));
+  if (counts.some(([value, max]) => !Number.isInteger(value) || value < 0 || value > max)) return "講義題數須為整數：範例 0–12、演練 0–20、各素養題 0–30。";
+  if (!Object.values(spec.include).some(Boolean)) return "請至少選擇一個講義內容模組。";
+  return "";
+}
+
+function productionValidationError() {
+  return ($("batchOutputQuestion")?.checked && questionValidationError()) ||
+    ($("batchOutputHandout")?.checked && handoutValidationError()) || "";
+}
+
+function invalidateBatchOutput() {
+  if (!$("batchOutputText")) return;
+  $("batchOutputText").value = "";
+  $("batchOutputText").classList.add("collapsed");
+  $("batchOutputPreview").textContent = "設定已更新，請重新產生結果。";
+}
+
 function buildBatchOutput() {
   syncSharedScopeToTools();
+  const validationError = productionValidationError();
+  if (validationError) {
+    $("batchOutputText").value = "";
+    $("batchOutputPreview").textContent = validationError;
+    toast(validationError);
+    return false;
+  }
   updateProductionTaskVisibility();
   const blocks = [];
   const summary = [];
@@ -1827,12 +1879,15 @@ function buildBatchOutput() {
 }
 
 async function copyBatchOutput() {
-  if (!$("batchOutputText").value.trim()) buildBatchOutput();
+  if (buildBatchOutput() === false) return;
   await navigator.clipboard.writeText($("batchOutputText").value);
   toast("已複製全部結果");
 }
 
 function downloadWorkCardMarkdown() {
+  syncSharedScopeToTools();
+  const validationError = productionValidationError();
+  if (validationError) { toast(validationError); return; }
   if (!$("batchOutputWorkCard")?.checked) {
     $("batchOutputWorkCard").checked = true;
   }
@@ -1978,20 +2033,21 @@ function questionSpec() {
   const basic = Number($("questionBasicCount").value || 0);
   const middle = Number($("questionMiddleCount").value || 0);
   const challenge = Number($("questionChallengeCount").value || 0);
-  const total = Number($("questionTotalCount").value || (basic + middle + challenge));
+  const total = Number($("questionTotalCount").value);
+  const scopeValue = (getValue) => [...new Set(scopeItems.map(getValue))].join("、");
   return {
-    grade,
-    subject,
+    grade: scopeValue(item => item.grade),
+    subject: scopeValue(item => item.subject),
     api: "http://127.0.0.1:8787",
-    level: inferQuestionLevelKey(grade),
-    questionBankSubject: questionBankSubjectName(grade, subject),
+    level: scopeValue(item => inferQuestionLevelKey(item.grade)),
+    questionBankSubject: scopeValue(item => questionBankSubjectName(item.grade, item.subject)),
     book: $("questionBook").value,
     chapter: $("questionChapter").value,
     section: $("questionSection").value,
     topics: Array.from(questionSelectedTopics),
     scopeItems,
     keyword: questionKeywordParts().join(" "),
-    candidateCount: Number($("questionCandidateCount").value || 30),
+    candidateCount: Number($("questionCandidateCount").value),
     totalCount: total,
     difficulty: { basic, middle, challenge },
     generationMode: $("questionGenerationMode").value,
@@ -2060,6 +2116,8 @@ function outputLabel(value) {
 function buildQuestionPrompt() {
   if (!$("questionPromptOutput")) return;
   const spec = questionSpec();
+  const error = questionValidationError(spec);
+  if (error) { $("questionPromptOutput").value = error; return false; }
   updateQuestionCurrentSummary(spec);
   const topicText = usingProductionScopeCache()
     ? [...new Set(spec.scopeItems.flatMap(item => item.topics || []))].join("、") || "未指定，使用各範圍章節與節名"
@@ -2138,13 +2196,13 @@ function buildQuestionPrompt() {
 }
 
 async function copyQuestionPrompt() {
-  buildQuestionPrompt();
+  if (buildQuestionPrompt() === false) { toast($("questionPromptOutput").value); return; }
   await navigator.clipboard.writeText($("questionPromptOutput").value);
   toast("已複製出題指令");
 }
 
 async function makeQuestions() {
-  buildQuestionPrompt();
+  if (buildQuestionPrompt() === false) { toast($("questionPromptOutput").value); return; }
   const spec = questionSpec();
   try {
     await navigator.clipboard.writeText($("questionPromptOutput").value);
@@ -2157,7 +2215,7 @@ async function makeQuestions() {
 }
 
 function downloadQuestionSpec() {
-  buildQuestionPrompt();
+  if (buildQuestionPrompt() === false) { toast($("questionPromptOutput").value); return; }
   const spec = questionSpec();
   const blob = new Blob([JSON.stringify({ ...spec, prompt: $("questionPromptOutput").value }, null, 2)], {
     type: "application/json;charset=utf-8"
@@ -2270,7 +2328,7 @@ function handoutStyleInstructions(value) {
     ],
     modulePack: [
       `套用灰階講義模組包樣式。`,
-      `範例、解題步驟、隨堂演練、答案解析請用可複製模組呈現。`,
+      `已勾選的內容請用可複製模組呈現；不新增未勾選的範例、演練或解析。`,
       `模組標題、題號、作答空間與解析區塊需固定格式，方便之後複製延伸。`
     ],
     freshBlue: [
@@ -2281,13 +2339,13 @@ function handoutStyleInstructions(value) {
     referenceBlack: [
       `套用黑白參考書分隔線版，正式講義不可出現樣式名稱、適用情境、視覺語言等版型說明表。`,
       `頁面以黑白為主，章節標題下方使用細水平線，靠編號、粗體關鍵詞、表格與短提示框建立閱讀層次。`,
-      `採加厚內容密度，避免一頁只有少量文字；加入觀念脈絡、判讀流程、考點深化、常見錯誤、延伸比較與例題解析。`,
+      `採加厚內容密度，避免一頁只有少量文字；已勾選模組可加入觀念脈絡、判讀流程、考點深化、常見錯誤與延伸比較。`,
       `頁尾使用「第 X 頁（共 Y 頁）」格式；公式整理表使用深灰表頭、淺灰首欄與細框線。`
     ],
     referenceFormula: [
       `套用黑白參考書＋LaTeX公式版，正式講義不可出現樣式名稱、適用情境、視覺語言等版型說明表。`,
       `頁面以黑白參考書分隔線版為基礎，章節標題下方使用細水平線，靠編號、粗體關鍵詞、表格與短提示框建立閱讀層次。`,
-      `採加厚內容密度，避免一頁只有少量文字；加入觀念脈絡、判讀流程、考點深化、常見錯誤、延伸比較與例題解析。`,
+      `採加厚內容密度，避免一頁只有少量文字；已勾選模組可加入觀念脈絡、判讀流程、考點深化、常見錯誤與延伸比較。`,
       `頁尾使用「第 X 頁（共 Y 頁）」格式；公式整理表使用深灰表頭、淺灰首欄與細框線。`,
       `正式 PDF 不能出現 sqrt(...)、v_esc、1/2 mv^2、(GM/r)^(1/2) 這類純文字公式；核心公式需正常呈現分式、根號、上下標、希臘字母、近似符號與比例符號。`,
       `若 Word 原生公式轉 PDF 會跑版，請使用 D:\\Workspace\\Codex\\Projects\\製作題目\\render_latex_formula.js，先將 LaTeX 公式渲染成圖片，再嵌入 Word。`,
@@ -2312,8 +2370,8 @@ function handoutSpec() {
   const title = $("handoutTitleInput").value.trim() || `${$("handoutChapter").value}：${$("handoutSection").value}`;
   const scopeItems = productionScopeItemsForPrompt();
   return {
-    grade: $("handoutGrade").value,
-    subject: $("handoutSubject").value,
+    grade: [...new Set(scopeItems.map(item => item.grade))].join("、"),
+    subject: [...new Set(scopeItems.map(item => item.subject))].join("、"),
     book: $("handoutBook").value,
     chapter: $("handoutChapter").value,
     section: $("handoutSection").value,
@@ -2440,6 +2498,26 @@ function deleteHandoutExample(exampleId) {
 function buildHandoutPrompt() {
   if (!$("handoutPromptOutput")) return;
   const spec = handoutSpec();
+  const error = handoutValidationError(spec);
+  if (error) { $("handoutPromptOutput").value = error; return false; }
+  const solution = spec.include.answers ? "並附詳解" : "不附答案或詳解";
+  const sections = [];
+  if (spec.include.concepts) sections.push(
+    "定義：提供精確嚴謹的學術定義。",
+    "說明：深入詳盡闡述，包含歷史脈絡、內容詳解、應用時機與技巧、延伸與比較，必要時使用表格。",
+    "定理：列出相關重要定理、適用範圍與限制。",
+    "公式：列出相關公式，並解釋每個符號的意義、單位和使用注意事項。"
+  );
+  if (spec.include.examples) sections.push(`${spec.include.answers ? "範例與解法" : "範例（不含解法）"}：${spec.exampleCount} 題。`);
+  if (spec.include.practice) sections.push(
+    `隨堂演練：${spec.practiceCount} 題，${solution}。`,
+    `科學素養計算題：${spec.questionCounts.calculation} 題，重點在觀念應用而非複雜計算，${solution}。`,
+    `科學素養觀念理解題：${spec.questionCounts.concept} 題，可為選擇、是非或簡答，${solution}。`,
+    `科學素養思考題：${spec.questionCounts.thinking} 題，採情境式或開放性問題，訓練邏輯推理與批判性思考，${solution}。`
+  );
+  if (spec.include.teacherNotes) sections.push("教師備註：教學節奏、學生盲點與提問建議，僅限教師版。 ");
+  const bankRoutes = [...new Set(spec.scopeItems.map(item => questionBankSubjectName(item.grade, item.subject)))].join("、");
+  const bankLevels = [...new Set(spec.scopeItems.map(item => inferQuestionLevelKey(item.grade)))].join("、");
   const topicText = usingProductionScopeCache()
     ? [...new Set(spec.scopeItems.flatMap(item => item.topics || []))].join("、") || "未指定，使用各範圍章節與節名"
     : spec.topics.length ? spec.topics.join("、") : "未指定，使用章節與節名";
@@ -2465,7 +2543,7 @@ function buildHandoutPrompt() {
   const includeText = Object.entries({
     toc: "目錄",
     concepts: "定義、說明、定理、公式",
-    examples: "範例與解法",
+    examples: spec.include.answers ? "範例與解法" : "範例（不含解法）",
     practice: "科學素養題組",
     answers: "答案解析",
     teacherNotes: "教師備註"
@@ -2489,23 +2567,15 @@ function buildHandoutPrompt() {
     ``,
     `內容結構：`,
     `請包含：${includeText}`,
-    `每個小節請嚴格包含以下九個部分：`,
-    `1. 定義：提供精確嚴謹的學術定義。`,
-    `2. 說明：深入詳盡闡述，包含歷史脈絡、內容詳解、應用時機與技巧、延伸與比較，必要時使用表格。`,
-    `3. 定理：列出相關重要定理、適用範圍與限制。`,
-    `4. 公式：列出相關公式，並解釋每個符號的物理或生物意義、單位和使用注意事項。`,
-    `5. 範例與解法：${spec.exampleCount} 題。`,
-    `6. 隨堂演練：${spec.practiceCount} 題。`,
-    `7. 科學素養計算題：${spec.questionCounts.calculation} 題，重點在觀念應用而非複雜計算，並附詳解。`,
-    `8. 科學素養觀念理解題：${spec.questionCounts.concept} 題，可為選擇、是非或簡答，並附詳解。`,
-    `9. 科學素養思考題：${spec.questionCounts.thinking} 題，採情境式或開放性問題，訓練邏輯推理與批判性思考，並附詳解。`,
-    `若有答案解析，請可清楚區分學生可見內容與教師用內容。`,
+    `每個小節依本次勾選設定包含以下 ${sections.length} 個內容部分：`,
+    ...sections.map((text, index) => `${index + 1}. ${text}`),
+    spec.include.answers ? `答案解析：學生版不顯示演練答案與教師解析；教師版保留完整詳解，清楚區分學生可見內容與教師用內容。` : `未勾選答案模組：所有版本均不附作答答案、解題步驟或解析。`,
     ``,
     `題庫使用規則：`,
     ...questionSourceInstructions,
     spec.questionSource === "original" ? "" : `題庫搜尋關鍵字：${bankKeyword}`,
-    spec.questionSource === "original" ? "" : `題庫 API subject：${questionBankSubjectName(spec.grade, spec.subject)}`,
-    spec.questionSource === "original" ? "" : `level：${inferQuestionLevelKey(spec.grade)}`,
+    spec.questionSource === "original" ? "" : `題庫 API subject：${bankRoutes}；依各範圍分別查詢，不可共用最後選取的科目。`,
+    spec.questionSource === "original" ? "" : `level：${bankLevels}`,
     spec.questionSource === "original" ? "" : `請沿用 D:\\Workspace\\Codex\\Projects\\製作題目\\question_bank_client.py。`,
     spec.questionSource === "original" ? "" : `題庫 API：http://127.0.0.1:8787`,
     spec.questionSource === "original" ? "" : `不要直接讀 SQLite；大量抓完整題目時，先用 questions() 取得 ID，再用 questions_by_id() 批次取得完整題目。`,
@@ -2514,8 +2584,8 @@ function buildHandoutPrompt() {
     ...handoutStyleInstructions(spec.style),
     `字體：${spec.typographyLabel}`,
     `Word 講義請以此字體設定為正文、題目、表格與解析的基準；標題、大標、小標可依階層加大，但需保持整份講義一致。`,
-    `範例、解題步驟、隨堂演練、答案解析請用可複製模組呈現。`,
-    `需要目錄時，請使用 Word 可更新的目錄欄位。`,
+    `已勾選的內容請用可複製模組呈現，不要加入未勾選的內容。`,
+    spec.include.toc ? `目錄請使用 Word 可更新的目錄欄位。` : `本次不包含目錄。`,
     ``,
     `補充文案或要求：`,
     spec.notes || "無；請依課程範圍自行整理成適合上課使用的講義。"
@@ -2526,13 +2596,13 @@ function buildHandoutPrompt() {
 }
 
 async function copyHandoutPrompt() {
-  buildHandoutPrompt();
+  if (buildHandoutPrompt() === false) { toast($("handoutPromptOutput").value); return; }
   await navigator.clipboard.writeText($("handoutPromptOutput").value);
   toast("已複製講義指令");
 }
 
 function downloadHandoutSpec() {
-  buildHandoutPrompt();
+  if (buildHandoutPrompt() === false) { toast($("handoutPromptOutput").value); return; }
   const spec = handoutSpec();
   const blob = new Blob([JSON.stringify({ ...spec, prompt: $("handoutPromptOutput").value }, null, 2)], {
     type: "application/json;charset=utf-8"
@@ -2841,7 +2911,7 @@ function renderCourseReviewIssues() {
 }
 
 function qualitySubjectNames() {
-  return Object.keys(filenameCourseData);
+  return sortSubjects(Object.keys(filenameCourseData));
 }
 
 function qualityCurrentSubject() {
@@ -3485,6 +3555,12 @@ function bindEvents() {
 }
 
 renderLearningAidStyleOptions();
+syncProductionModeButtons(productionMode);
+for (const eventName of ["input", "change"]) {
+  document.addEventListener(eventName, event => {
+    if (event.target.closest('[data-workspace-view="production"]') && event.target.id !== "batchOutputText") invalidateBatchOutput();
+  });
+}
 restoreDraft();
 bindEvents();
 updatePreviewSizeClass();
