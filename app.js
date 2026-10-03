@@ -21,6 +21,9 @@ let courseFixes = readJson(STORAGE.fixes, []);
 let progressCache = readJson(STORAGE.progressCache, []);
 let productionScopeCache = readJson(STORAGE.productionScopeCache, []);
 let productionMode = readJson("teachinglog.productionMode.v1", "singleQuestion");
+let productionScopeSource = readJson("teachinglog.scopeSource.v2", productionMode.startsWith("single") ? "current" : "saved");
+const PRODUCTION_RULE_VERSION = "2026-10-03-workspace-v2";
+let lastSyncedFilenameScope = "";
 let homeworkPhrases = readJson(STORAGE.homeworkPhrases, ["完成講義", "訂正錯題", "複習今日進度", "預習下次範圍"]);
 let sharedSelectedTopics = new Set();
 let questionSelectedTopics = new Set();
@@ -865,7 +868,7 @@ function productionScopeItemsForPrompt() {
 }
 
 function usingProductionScopeCache() {
-  return !productionMode.startsWith("single") && productionScopeCache.map(normalizeProductionScopeItem).some(item => item.enabled !== false);
+  return productionScopeSource === "saved" && productionScopeCache.map(normalizeProductionScopeItem).some(item => item.enabled !== false);
 }
 
 function productionScopePromptLines(items = productionScopeItemsForPrompt()) {
@@ -1025,8 +1028,7 @@ function learningAidUseLabel(item) {
 }
 
 function activeProductionModeLabel() {
-  const active = document.querySelector("[data-production-mode].active");
-  return active?.querySelector("strong")?.textContent?.trim() || "未指定";
+  return productionScopeSource === "saved" ? "已暫存範圍" : "目前單元";
 }
 
 function productionJobCardTitle(scopeItems, outputItems) {
@@ -1127,6 +1129,7 @@ function buildCodexWorkCardPrompt() {
     `請建立一張 Codex 工作卡，標題：${taskTitle}`,
     "",
     "【任務卡基本資料】",
+    `規則版本：${PRODUCTION_RULE_VERSION}`,
     `任務名稱：${taskTitle}`,
     `製作模式：${activeProductionModeLabel()}`,
     `範圍型態：${usingProductionScopeCache() ? `跨 ${scopeItems.length} 個範圍` : "單一範圍"}`,
@@ -1141,6 +1144,8 @@ function buildCodexWorkCardPrompt() {
     "",
     "製作範圍：",
     scopeLines,
+    "範圍快照（不得使用其他任務或最後選取科目取代）：",
+    JSON.stringify(scopeItems.map(item => ({ ...item, apiSubject: questionBankSubjectName(item.grade, item.subject), level: inferQuestionLevelKey(item.grade) })), null, 2),
     "",
     "輸出項目：",
     outputLines,
@@ -1158,7 +1163,12 @@ function buildCodexWorkCardPrompt() {
     "3. Word/PDF 產出後要回報完整路徑；需要轉 PDF 時使用英文暫存路徑避開 LibreOffice 中文路徑問題。",
     "4. 若候選題不足，明確回報不足數量，不要用 AI 題冒充本機題庫原題。",
     "5. 完成後列出已產出檔案、題數/頁數檢查結果與任何不足。",
-    "6. 若是正式講義，依專案規則區分學生可見內容與教師用內容，並做 Word/PDF 版面檢查。"
+    "6. 若是正式講義，依專案規則區分學生可見內容與教師用內容，並做 Word/PDF 版面檢查。",
+    "【驗收清單】",
+    "- 逐一核對範圍、科目、題數分配、來源與題目 ID；本機原題不得改寫，AI 仿題須標示並遵守完整指令的改寫規則。",
+    "- 核對字型、字級、版型與學生／教師答案分離。",
+    "- 回報完整輸出路徑、題數、頁數及缺題；檢查轉檔後版面。",
+    window.productionWorkspacePreflightSummary?.() || "題庫預檢：尚未完成，不代表候選題充足。"
   ].join("\n");
 }
 
@@ -1187,10 +1197,13 @@ function renderProductionFinalSummary() {
     `<div><span>工作卡</span><strong>${escapeHtml(workCardText)}</strong></div>`,
     `<div><span>AI輔助包</span><strong>${escapeHtml(learningAidText)}</strong></div>`
   ].join("");
+  window.dispatchEvent(new Event("production:updated"));
 }
 
 function syncProductionModeButtons(activeMode) {
   productionMode = activeMode;
+  productionScopeSource = activeMode.startsWith("single") || (activeMode === "questionHandout" && !productionScopeCache.some(item => item.enabled !== false)) ? "current" : "saved";
+  writeJson("teachinglog.scopeSource.v2", productionScopeSource);
   writeJson("teachinglog.productionMode.v1", productionMode);
   document.querySelectorAll("[data-production-mode]").forEach(button => {
     button.classList.toggle("active", button.dataset.productionMode === activeMode);
@@ -1756,6 +1769,10 @@ function syncSharedScopeToTools() {
   const keyword = $("sharedKeyword").value.trim();
 
   if (filenameCourseData[subject]) {
+    const scopeKey = JSON.stringify([subject, book, chapter]);
+    const preserveAlias = scopeKey === lastSyncedFilenameScope;
+    const alias = $("filenameCourseAlias").value;
+    const unit = $("filenameUnit").value;
     $("filenameSubject").value = subject;
     renderFilenameCourses();
     setSelectValueIfPossible("filenameCourse", book);
@@ -1763,6 +1780,11 @@ function syncSharedScopeToTools() {
     setSelectValueIfPossible("filenameChapter", chapter);
     syncFilenameCourseAlias();
     syncFilenameUnit();
+    if (preserveAlias) {
+      $("filenameCourseAlias").value = alias;
+      $("filenameUnit").value = unit;
+    }
+    lastSyncedFilenameScope = scopeKey;
     updateFilenamePreview();
   }
 
@@ -1797,6 +1819,7 @@ function syncSharedScopeToTools() {
 }
 
 function questionValidationError(spec = questionSpec()) {
+  if (scopeSelectionError()) return scopeSelectionError();
   const integer = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
   if (!integer(spec.totalCount, 1, 60)) return "總題數須為 1 至 60 的整數。";
   const counts = Object.values(spec.difficulty);
@@ -1812,6 +1835,7 @@ function questionValidationError(spec = questionSpec()) {
 }
 
 function handoutValidationError(spec = handoutSpec()) {
+  if (scopeSelectionError()) return scopeSelectionError();
   const counts = [];
   if (spec.include.examples) counts.push([spec.exampleCount, 12]);
   if (spec.include.practice) counts.push([spec.practiceCount, 20], ...Object.values(spec.questionCounts).map(value => [value, 30]));
@@ -1821,8 +1845,13 @@ function handoutValidationError(spec = handoutSpec()) {
 }
 
 function productionValidationError() {
-  return ($("batchOutputQuestion")?.checked && questionValidationError()) ||
+  return scopeSelectionError() || ($("batchOutputQuestion")?.checked && questionValidationError()) ||
     ($("batchOutputHandout")?.checked && handoutValidationError()) || "";
+}
+
+function scopeSelectionError() {
+  return productionScopeSource === "saved" && !productionScopeCache.some(item => item.enabled !== false)
+    ? "請勾選至少一個暫存範圍，或切換為目前單元。" : "";
 }
 
 function invalidateBatchOutput() {
@@ -1830,6 +1859,7 @@ function invalidateBatchOutput() {
   $("batchOutputText").value = "";
   $("batchOutputText").classList.add("collapsed");
   $("batchOutputPreview").textContent = "設定已更新，請重新產生結果。";
+  window.dispatchEvent(new Event("production:invalidated"));
 }
 
 function buildBatchOutput() {
@@ -1876,6 +1906,8 @@ function buildBatchOutput() {
     : "請至少勾選一個輸出項目。";
   renderProductionFinalSummary();
   toast("已產生勾選項目");
+  window.dispatchEvent(new CustomEvent("production:generated", { detail: blocks.map((text, index) => ({ title: summary[index], text })) }));
+  return blocks.length > 0;
 }
 
 async function copyBatchOutput() {
@@ -3555,7 +3587,10 @@ function bindEvents() {
 }
 
 renderLearningAidStyleOptions();
+const restoredScopeSource = productionScopeSource;
 syncProductionModeButtons(productionMode);
+productionScopeSource = restoredScopeSource;
+writeJson("teachinglog.scopeSource.v2", productionScopeSource);
 for (const eventName of ["input", "change"]) {
   document.addEventListener(eventName, event => {
     if (event.target.closest('[data-workspace-view="production"]') && event.target.id !== "batchOutputText") invalidateBatchOutput();

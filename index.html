@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上課進度與檔名系統 v0.8 單機版</title>
-  <link rel="stylesheet" href="styles.css?v=20261003-production-fixes">
+  <link rel="stylesheet" href="styles.css?v=20261003-workspace-v2">
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">Local v0.8</p>
+      <p class="eyebrow">教學工作台 v2</p>
       <h1>上課進度與檔名系統</h1>
     </div>
     <div class="header-actions">
@@ -221,7 +221,7 @@
         <span class="step-index">製</span>
         <div>
           <h2 id="productionTitle">製作中心</h2>
-          <p>先選一次範圍，再決定要輸出檔名、題目或講義。</p>
+          <nav class="production-steps" aria-label="製作流程"><a href="#sharedScopeTitle">1 選範圍</a><a href="#productionOutputTitle">2 選輸出</a><a href="#productionPresetTitle">3 調設定</a><a href="#batchOutputTitle">4 產生結果</a></nav>
         </div>
       </div>
 
@@ -229,8 +229,11 @@
         <div class="section-head compact">
           <div>
             <h2 id="sharedScopeTitle">共用範圍</h2>
-            <p>這裡會同步套用到檔名、題目與講義。</p>
           </div>
+        </div>
+        <div class="scope-source-switch" role="group" aria-label="範圍來源">
+          <label><input type="radio" name="scopeSource" value="current" checked>目前單元</label>
+          <label><input type="radio" name="scopeSource" value="saved">已暫存範圍</label>
         </div>
         <div class="field-grid three">
           <label>
@@ -281,7 +284,6 @@
           <div class="cache-head">
             <div>
               <strong id="productionScopeCacheTitle">已選製作範圍</strong>
-              <p>可跨章節、跨單元暫存；產生題目或講義時會一併帶入。</p>
             </div>
             <span id="productionScopeCacheCount" class="badge">0</span>
           </div>
@@ -289,7 +291,7 @@
         </div>
       </section>
 
-      <section class="form-section production-mode-section" aria-labelledby="productionModeTitle">
+      <section class="form-section production-mode-section" aria-labelledby="productionModeTitle" hidden>
         <div class="section-head compact">
           <div>
             <h2 id="productionModeTitle">製作模式</h2>
@@ -324,9 +326,13 @@
         <div class="section-head compact">
           <div>
             <h2 id="productionPresetTitle">常用組合</h2>
-            <p>快速套用常見製作設定，仍可再微調。</p>
           </div>
         </div>
+        <div class="saved-settings-toolbar">
+          <label><span>組合名稱</span><input id="productionPresetName" maxlength="80" placeholder="例如：高二段考 30 題"></label>
+          <button id="saveProductionPresetBtn" class="secondary" type="button"><i data-lucide="bookmark-plus"></i>儲存組合</button>
+        </div>
+        <div id="customProductionPresets" class="saved-item-list"></div>
         <div class="production-preset-row">
           <button class="chip quiet" type="button" data-production-preset="quiz20">隨堂測驗 20 題</button>
           <button class="chip quiet" type="button" data-production-preset="examReview">跨單元段考複習</button>
@@ -339,37 +345,63 @@
       <section class="form-section production-output-section" aria-labelledby="productionOutputTitle">
         <div class="section-head compact">
           <div>
-            <h2 id="productionOutputTitle">要產生什麼</h2>
-            <p>勾選後，下方只會顯示對應的設定。</p>
+            <h2 id="productionOutputTitle">輸出項目</h2>
           </div>
         </div>
         <div class="production-card-grid">
           <label class="production-choice-card">
             <input id="batchOutputFilename" type="checkbox">
             <strong>檔名</strong>
-            <span>產生規範一致的 Word、PDF 或講義檔名。</span>
           </label>
           <label class="production-choice-card">
             <input id="batchOutputQuestion" type="checkbox" checked>
             <strong>題目指令</strong>
-            <span>用本機題庫原題或 AI 仿題製作測驗。</span>
           </label>
           <label class="production-choice-card">
             <input id="batchOutputHandout" type="checkbox">
             <strong>講義指令</strong>
-            <span>依共用範圍產生上課講義需求。</span>
           </label>
           <label class="production-choice-card">
             <input id="batchOutputWorkCard" type="checkbox">
             <strong>工作卡提示詞</strong>
-            <span>把已選範圍整理成可貼給 Codex 的工作卡。</span>
           </label>
           <label class="production-choice-card">
             <input id="batchOutputLearningAid" type="checkbox">
             <strong>AI學習輔助包</strong>
-            <span>產生學習地圖、預習、視覺圖解、家長版與圖片提示詞。</span>
           </label>
         </div>
+      </section>
+
+      <section class="form-section" aria-labelledby="productionDraftTitle">
+        <h2 id="productionDraftTitle">製作草稿</h2>
+        <div class="saved-settings-toolbar">
+          <label><span>草稿名稱</span><input id="productionDraftName" maxlength="80" placeholder="例如：高二三角函數段考"></label>
+          <button id="saveProductionDraftBtn" class="primary-action" type="button"><i data-lucide="save"></i>另存草稿</button>
+          <button id="exportProductionDraftsBtn" class="secondary" type="button" title="匯出草稿與組合"><i data-lucide="download"></i>匯出</button>
+          <button id="importProductionDraftsBtn" class="secondary" type="button" title="匯入草稿與組合"><i data-lucide="upload"></i>匯入</button>
+          <input id="importProductionDraftsFile" type="file" accept=".json,application/json" hidden>
+        </div>
+        <div id="productionDraftList" class="saved-item-list"></div>
+        <p id="productionSaveStatus" role="status"></p>
+      </section>
+
+      <section class="form-section" aria-labelledby="allocationTitle">
+        <h2 id="allocationTitle">跨單元題數分配</h2>
+        <div class="allocation-toolbar">
+          <label><span>分配方式</span><select id="productionAllocationMode"><option value="equal">平均分配</option><option value="weighted">依權重</option><option value="manual">手動分配</option></select></label>
+          <button id="applyProductionAllocationBtn" class="secondary" type="button"><i data-lucide="scale"></i>套用分配</button>
+          <output id="productionAllocationStatus"></output>
+        </div>
+        <div id="productionWeights" class="weight-list"></div>
+      </section>
+
+      <section class="form-section" aria-labelledby="bankPreflightTitle">
+        <h2 id="bankPreflightTitle">題庫預檢</h2>
+        <div class="allocation-toolbar">
+          <button id="bankPreflightBtn" class="secondary" type="button"><i data-lucide="database"></i>檢查連線與候選題</button>
+          <span id="bankPreflightStatus" role="status">尚未檢查</span>
+        </div>
+        <div id="bankPreflightResults"></div>
       </section>
 
       <section id="learningAidOptions" class="form-section learning-aid-options hidden-view" aria-labelledby="learningAidTitle">
@@ -1073,7 +1105,6 @@
         <span class="step-index">出</span>
         <div>
           <h2 id="batchOutputTitle">產生結果</h2>
-          <p>確認設定後按一次產生，需要時再複製完整結果。</p>
         </div>
       </div>
       <div class="toolbar question-actions">
@@ -1083,6 +1114,11 @@
       </div>
       <div id="batchOutputPreview" class="batch-output-preview muted">尚未產生結果。</div>
       <div id="productionFinalSummary" class="production-final-summary"></div>
+      <div id="productionResultTabs" class="result-tabs" role="tablist" aria-label="輸出結果"></div>
+      <div id="productionResultPanel" role="tabpanel" hidden>
+        <div class="result-section-actions"><strong id="productionResultTitle"></strong><button id="copyProductionResultBtn" class="secondary" type="button"><i data-lucide="copy"></i>複製此項</button></div>
+        <textarea id="productionResultText" rows="14" readonly aria-label="目前輸出內容"></textarea>
+      </div>
       <textarea id="batchOutputText" class="batch-output-text collapsed" rows="10" readonly placeholder="按「產生勾選項目」後，這裡會彙整檔名、題目指令、講義指令與工作卡。"></textarea>
     </section>
 
@@ -1307,6 +1343,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20261003-production-fixes"></script>
+  <script src="vendor/lucide.min.js?v=0.468.0"></script>
+  <script src="app.js?v=20261003-workspace-v2"></script>
+  <script src="production-workspace.js?v=20261003-workspace-v2"></script>
 </body>
 </html>
